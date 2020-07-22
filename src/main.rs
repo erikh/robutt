@@ -1,7 +1,7 @@
-mod loudfile;
+mod lib;
 
 use irc::client::prelude::*;
-use loudfile::LoudFile;
+use lib::dispatch::dispatch;
 use std::ops::Index;
 
 fn load_config() -> Config {
@@ -32,20 +32,13 @@ fn main() {
 
     reactor.register_client_with_handler(client, |client, message| {
         match message.clone().command {
-            Command::PRIVMSG(channel, text) => {
-                let target = message.response_target().unwrap();
-                if text.to_uppercase() == text {
-                    let loudfile = LoudFile::new("loudfile.txt");
-
-                    println!("LOUD: {} <{}> {}", channel, target, text);
-
-                    loudfile.append(&text).unwrap();
-
-                    if let Some(line) = loudfile.get_line() {
-                        client.send_privmsg(target, line)?;
-                    }
+            Command::PRIVMSG(_, text) => {
+                match dispatch(client, message.response_target().unwrap().to_string(), text) {
+                    Ok(_) => (),
+                    Err(e) => println!("IRC ERROR: {}", e),
                 }
             }
+            Command::PING(_, _) => (),
             Command::PONG(_, _) => (),
             _ => print!("{}", message),
         }

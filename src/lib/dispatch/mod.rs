@@ -1,4 +1,4 @@
-use crate::lib::util::loudfile::LoudFile;
+use crate::lib::loudfile::LoudFile;
 use irc::client::prelude::*;
 
 fn loud(

@@ -43,7 +43,6 @@ fn main() {
             _ => print!("{}", message),
         }
 
-        // And here we can do whatever we want with the messages.
         Ok(())
     });
 

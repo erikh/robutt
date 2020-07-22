@@ -1,5 +1,3 @@
-extern crate irc;
-
 use irc::client::prelude::*;
 use rand::prelude::*;
 use std::collections::HashSet;
@@ -74,12 +72,22 @@ impl LoudFile<'_> {
 }
 
 fn main() {
-    // We can also load the Config at runtime via Config::load("path/to/config.toml")
-    let config = Config {
-        nickname: Some("robutt".to_owned()),
-        server: Some("irc.freenode.net".to_owned()),
-        channels: Some(vec!["#made".to_owned()]),
-        ..Config::default()
+    let args: Vec<String> = std::env::args().collect();
+    let config = if args.len() >= 2 {
+        match Config::load(args.index(1)) {
+            Ok(config) => config,
+            Err(e) => {
+                println!("Error loading config: {}", e);
+                std::process::exit(1);
+            }
+        }
+    } else {
+        Config {
+            nickname: Some("robutt-dev".to_owned()),
+            server: Some("irc.freenode.net".to_owned()),
+            channels: Some(vec!["#tinyci".to_owned()]),
+            ..Config::default()
+        }
     };
 
     let mut reactor = IrcReactor::new().unwrap();

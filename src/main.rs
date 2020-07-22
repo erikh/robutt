@@ -112,8 +112,6 @@ fn main() {
                     if let Some(line) = loudfile.get_line() {
                         client.send_privmsg(channel, line)?;
                     }
-
-                    drop(loudfile);
                 }
             }
             Command::PONG(_, _) => (),

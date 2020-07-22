@@ -2,7 +2,7 @@ mod lib;
 
 use irc::client::prelude::*;
 use lib::config::load_config;
-use lib::dispatch::{default_dispatch, dispatch};
+use lib::dispatch::{default_dispatcher, dispatch};
 
 fn main() {
     let mut reactor = IrcReactor::new().unwrap();
@@ -19,7 +19,7 @@ fn main() {
                         prefix.to_string(),
                         message.clone().response_target().unwrap().to_string(),
                         text,
-                        default_dispatch(),
+                        default_dispatcher(),
                     ) {
                         Ok(_) => (),
                         Err(e) => println!("IRC ERROR: {}", e),

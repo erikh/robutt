@@ -1,7 +1,7 @@
 use irc::client::prelude::*;
 use std::collections::HashMap;
 
-pub fn default_dispatch() -> Dispatcher {
+pub fn default_dispatcher() -> Dispatcher {
     let mut d = Dispatcher::new();
     d.insert("gamesdb".to_string(), targets::commands::gamesdb);
     d

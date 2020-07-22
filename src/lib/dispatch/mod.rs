@@ -1,11 +1,11 @@
 use irc::client::prelude::*;
 use std::collections::HashMap;
 
-pub const DEFAULT_DISPATCH: fn() -> Dispatcher = || {
+pub fn default_dispatch() -> Dispatcher {
     let mut d = Dispatcher::new();
     d.insert("gamesdb".to_string(), targets::commands::gamesdb);
     d
-};
+}
 
 pub type DispatchError = Result<(), irc::error::IrcError>;
 

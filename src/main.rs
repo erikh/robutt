@@ -71,9 +71,9 @@ impl LoudFile<'_> {
     }
 }
 
-fn main() {
+fn load_config() -> Config {
     let args: Vec<String> = std::env::args().collect();
-    let config = if args.len() >= 2 {
+    if args.len() >= 2 {
         match Config::load(args.index(1)) {
             Ok(config) => config,
             Err(e) => {
@@ -88,10 +88,12 @@ fn main() {
             channels: Some(vec!["#tinyci".to_owned()]),
             ..Config::default()
         }
-    };
+    }
+}
 
+fn main() {
     let mut reactor = IrcReactor::new().unwrap();
-    let client = reactor.prepare_client_and_connect(&config).unwrap();
+    let client = reactor.prepare_client_and_connect(&load_config()).unwrap();
     client.identify().unwrap();
 
     reactor.register_client_with_handler(client, |client, message| {

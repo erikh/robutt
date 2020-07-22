@@ -1,0 +1,13 @@
+[package]
+name = "robutt"
+version = "0.1.0"
+authors = ["Erik Hollensbe <github@hollensbe.org>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+irc = "^0.13"
+futures = ">=0"
+tokio = "^0.1"
+rand = ">=0"

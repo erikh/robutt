@@ -1,28 +1,8 @@
 mod lib;
 
 use irc::client::prelude::*;
-use lib::dispatch::dispatch;
-use std::ops::Index;
-
-fn load_config() -> Config {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() >= 2 {
-        match Config::load(args.index(1)) {
-            Ok(config) => config,
-            Err(e) => {
-                println!("Error loading config: {}", e);
-                std::process::exit(1);
-            }
-        }
-    } else {
-        Config {
-            nickname: Some("robutt-dev".to_owned()),
-            server: Some("irc.freenode.net".to_owned()),
-            channels: Some(vec!["#tinyci".to_owned()]),
-            ..Config::default()
-        }
-    }
-}
+use lib::config::load_config;
+use lib::dispatch::{dispatch, DEFAULT_DISPATCH};
 
 fn main() {
     let mut reactor = IrcReactor::new().unwrap();
@@ -33,9 +13,17 @@ fn main() {
     reactor.register_client_with_handler(client, |client, message| {
         match message.clone().command {
             Command::PRIVMSG(_, text) => {
-                match dispatch(client, message.response_target().unwrap().to_string(), text) {
-                    Ok(_) => (),
-                    Err(e) => println!("IRC ERROR: {}", e),
+                if let Some(prefix) = message.source_nickname() {
+                    match dispatch(
+                        client,
+                        prefix.to_string(),
+                        message.clone().response_target().unwrap().to_string(),
+                        text,
+                        DEFAULT_DISPATCH(),
+                    ) {
+                        Ok(_) => (),
+                        Err(e) => println!("IRC ERROR: {}", e),
+                    }
                 }
             }
             Command::PING(_, _) => (),

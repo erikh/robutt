@@ -11,3 +11,4 @@ irc = { version = "^0.13", features = [ "yaml", "json", "toml" ] }
 futures = ">=0"
 tokio = "^0.1"
 rand = ">=0"
+surf = '^1'

@@ -16,6 +16,7 @@ pub fn load_config() -> Config {
             nickname: Some("robutt-dev".to_owned()),
             server: Some("irc.freenode.net".to_owned()),
             channels: vec!["#tinyci".to_owned()],
+            ping_timeout: Some(180),
             ..Config::default()
         }
     }

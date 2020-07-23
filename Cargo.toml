@@ -7,7 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-irc = { version = "^0.13", features = [ "yaml", "json", "toml" ] }
+irc = { version = "^0.14", features = [ "yaml", "json", "toml" ] }
 rand = ">=0"
 openapi = { path = './gamesdbapi' }
 futures = "^0.3"
+futures-util = '>=0'
+tokio = '>=0'

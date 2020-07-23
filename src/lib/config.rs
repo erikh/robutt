@@ -15,7 +15,7 @@ pub fn load_config() -> Config {
         Config {
             nickname: Some("robutt-dev".to_owned()),
             server: Some("irc.freenode.net".to_owned()),
-            channels: Some(vec!["#tinyci".to_owned()]),
+            channels: vec!["#tinyci".to_owned()],
             ..Config::default()
         }
     }

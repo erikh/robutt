@@ -1,4 +1,3 @@
-use irc::client::prelude::*;
 use std::collections::HashMap;
 
 pub fn default_dispatcher() -> Dispatcher {
@@ -7,20 +6,16 @@ pub fn default_dispatcher() -> Dispatcher {
     d
 }
 
-pub type DispatchError = Result<(), irc::error::IrcError>;
+pub type DispatchError = Result<(), irc::error::Error>;
 
 pub type Dispatcher = HashMap<
     String,
-    fn(
-        client: &irc::client::IrcClient,
-        sender: String,
-        target: String,
-        text: String,
-    ) -> DispatchError,
+    fn(client: &irc::client::Client, sender: String, target: String, text: String) -> DispatchError,
 >;
 
 pub fn dispatch<'a>(
-    client: &irc::client::IrcClient,
+    client: &irc::client::Client,
+    nick: String,
     sender: String,
     target: String,
     text: String,
@@ -30,10 +25,8 @@ pub fn dispatch<'a>(
         return targets::loud(client, target, text);
     };
 
-    if let Ok(nick) = client.config().nickname() {
-        if text.trim().starts_with(nick) {
-            return targets::addressed(client, sender, target, text, dispatch);
-        };
+    if text.trim().starts_with(&nick) {
+        return targets::addressed(client, sender, target, text, dispatch);
     };
 
     Ok(())
@@ -42,10 +35,9 @@ pub fn dispatch<'a>(
 mod targets {
     use crate::lib::dispatch::{DispatchError, Dispatcher};
     use crate::lib::loudfile::LoudFile;
-    use irc::client::prelude::*;
 
     pub fn addressed(
-        client: &irc::client::IrcClient,
+        client: &irc::client::Client,
         sender: String,
         target: String,
         text: String,
@@ -71,7 +63,7 @@ mod targets {
         return Ok(());
     }
 
-    pub fn loud(client: &irc::client::IrcClient, target: String, text: String) -> DispatchError {
+    pub fn loud(client: &irc::client::Client, target: String, text: String) -> DispatchError {
         let loudfile = LoudFile::new("loudfile.txt");
 
         println!("LOUD: <{}> {}", target, text);
@@ -91,7 +83,6 @@ mod targets {
     pub mod commands {
         use crate::lib::dispatch::DispatchError;
         use futures::executor;
-        use irc::client::prelude::*;
         use openapi::apis::{self, games_api};
 
         fn fetch(text: String) -> Result<String, apis::Error<games_api::GamesByGameNameError>> {
@@ -121,7 +112,7 @@ mod targets {
         }
 
         pub fn gamesdb(
-            client: &irc::client::IrcClient,
+            client: &irc::client::Client,
             sender: String,
             target: String,
             text: String,
@@ -129,12 +120,12 @@ mod targets {
             if text == "" {
                 match client.send_privmsg(target, format!("{}: Try 'gamesdb <title>'", sender)) {
                     Ok(_) => Ok(()),
-                    Err(e) => Err(irc::error::IrcError::from(e)),
+                    Err(e) => Err(irc::error::Error::from(e)),
                 }
             } else {
                 match fetch(text) {
                     Ok(url) => client.send_privmsg(target, format!("Youtube: {}", url)),
-                    Err(apis::Error::Io(e)) => Err(irc::error::IrcError::from(e)),
+                    Err(apis::Error::Io(e)) => Err(irc::error::Error::from(e)),
                     Err(e) => {
                         println!("Error: {:?}", e);
                         client.send_privmsg(target, "Error fetching data")

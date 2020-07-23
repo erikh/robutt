@@ -98,23 +98,45 @@ mod targets {
                     &config,
                     &api_key,
                     &text,
-                    Some("youtube"),
+                    Some("youtube,overview"),
                     Some(""),
                     Some(""),
                     Some(0),
                 )
                 .await?;
 
-                if let Some(youtube_url) = &res.data.games.first().unwrap().youtube {
-                    return Ok(youtube_url.to_string());
+                let mut ret: Vec<String> = Vec::new();
+
+                if let Some(obj) = &res.data.games.first() {
+                    if let Some(title) = &obj.game_title {
+                        ret.push(format!("Title: {}", title))
+                    }
+
+                    if let Some(youtube_url) = &obj.youtube {
+                        if youtube_url != "" {
+                            if youtube_url.starts_with("https://youtube.com") {
+                                ret.push(format!("Youtube: {}", youtube_url));
+                            } else {
+                                ret.push(format!(
+                                    "Youtube: https://youtube.com/watch?v={}",
+                                    youtube_url
+                                ));
+                            }
+                        }
+                    }
+
+                    if let Some(overview) = &obj.overview {
+                        ret.push(format!("Overview: {}", overview));
+                    }
+
+                    return Ok(ret.join(" / "));
                 }
             }
 
-            Ok(String::from("No youtube url found"))
+            Ok(String::from("No information found"))
         }
 
         pub async fn gamesdb(dispatch: Dispatch) -> DispatchResult<'static> {
-            println!("{}", dispatch.text);
             if dispatch.text == "" {
                 match dispatch.client.send_privmsg(
                     dispatch.target,
@@ -125,9 +147,7 @@ mod targets {
                 }
             } else {
                 match fetch(dispatch.text).await {
-                    Ok(url) => dispatch
-                        .client
-                        .send_privmsg(dispatch.target, format!("Youtube: {}", url)),
+                    Ok(text) => dispatch.client.send_privmsg(dispatch.target, text),
                     Err(apis::Error::Io(e)) => Err(irc::error::Error::from(e)),
                     Err(e) => {
                         println!("Error: {:?}", e);

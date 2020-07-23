@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **status** | **String** |  | 
 **remaining_monthly_allowance** | **i32** |  | 
 **extra_allowance** | **i32** |  | 
+**allowance_refresh_timer** | Option<**i32**> |  | [optional]
 **pages** | [**crate::models::PaginatedApiResponseAllOfPages**](PaginatedApiResponse_allOf_pages.md) |  | 
 **data** | [**crate::models::GamesByGameIdAllOfData**](GamesByGameID_allOf_data.md) |  | 
 **include** | [**crate::models::GamesByGameIdV1AllOfInclude**](GamesByGameID_v1_allOf_include.md) |  | 

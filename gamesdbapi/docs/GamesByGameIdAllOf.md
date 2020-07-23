@@ -5,7 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **data** | [**crate::models::GamesByGameIdAllOfData**](GamesByGameID_allOf_data.md) |  | 
-**include** | [**crate::models::GamesByGameIdAllOfInclude**](GamesByGameID_allOf_include.md) |  | 
+**include** | Option<[**crate::models::GamesByGameIdAllOfInclude**](GamesByGameID_allOf_include.md)> |  | [optional]
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

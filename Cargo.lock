@@ -669,7 +669,6 @@ checksum = "0b631f7e854af39a1739f401cf34a8a013dfe09eac4fa4dba91e9768bd28168d"
 name = "openapi"
 version = "1.0.0"
 dependencies = [
- "hyper",
  "reqwest",
  "serde",
  "serde_derive",
@@ -920,6 +919,7 @@ dependencies = [
  "irc",
  "openapi",
  "rand",
+ "reqwest",
  "tokio",
 ]
 

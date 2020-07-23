@@ -3,7 +3,7 @@ mod lib;
 use futures::*;
 use irc::client::prelude::*;
 use lib::config::load_config;
-use lib::dispatch::{default_dispatcher, Dispatch};
+use lib::dispatch::{dispatcher, Dispatch};
 
 #[tokio::main]
 pub async fn main() -> Result<(), irc::error::Error> {
@@ -16,21 +16,21 @@ pub async fn main() -> Result<(), irc::error::Error> {
     let mut stream = client.stream()?;
 
     loop {
-        let dispatcher = default_dispatcher();
+        let dp = dispatcher();
         match stream.next().await {
             Some(Ok(message)) => match message.clone().command {
                 Command::PRIVMSG(prefix, text) => {
                     println!("<{}> {}", prefix, text.to_string());
                     if let Some(prefix) = message.source_nickname() {
-                        let d = Dispatch {
-                            client: client.sender(),
-                            nick: my_nickname.to_string(),
-                            sender: prefix.to_string(),
-                            target: message.response_target().unwrap().to_string(),
-                            text: text.to_string(),
-                        };
+                        let d = Dispatch::new(
+                            client.sender(),
+                            my_nickname.to_string(),
+                            prefix.to_string(),
+                            message.response_target().unwrap().to_string(),
+                            text.to_string(),
+                        );
 
-                        match d.dispatch(&dispatcher).await {
+                        match d.dispatch(dp).await {
                             Ok(_) => println!("{}", message),
                             Err(e) => println!("IRC ERROR: {}", e),
                         }

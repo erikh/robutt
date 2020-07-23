@@ -1,9 +1,8 @@
 use futures::*;
-use std::collections::HashMap;
 use std::pin::Pin;
 
 #[derive(Clone)]
-pub struct Dispatch<'a> {
+pub struct Dispatch {
     client: irc::client::Sender,
     nick: String,
     sender: String,
@@ -11,26 +10,54 @@ pub struct Dispatch<'a> {
     text: String,
 }
 
-pub fn default_dispatcher<'a>() -> Dispatcher<'a> {
-    let mut d = Dispatcher::new();
-    d.insert("gamesdb".to_string(), Pin::new(&targets::commands::gamesdb));
-    d
+pub fn dispatcher() -> Dispatcher<'static> {
+    return |s: &str, dispatch: Dispatch| -> Option<DispatchPinBox<'_>> {
+        match s {
+            "gamesdb" => Some(Box::pin(targets::commands::gamesdb(dispatch))),
+            _ => None,
+        }
+    };
 }
 
 pub type DispatchResult<'a> = Result<(), irc::error::Error>;
-pub type DispatchFuture<'a> = dyn future::Future<Output = DispatchResult<'a>>;
-pub type DispatchFunc<'a> = &'a for<'b> fn(Dispatch<'b>) -> DispatchFuture<'a>;
-pub type DispatchPinBox<'a> = Pin<DispatchFunc<'a>>;
-pub type Dispatcher<'a> = HashMap<String, DispatchPinBox<'a>>;
+pub type Dispatcher<'a> = fn(s: &str, dispatch: Dispatch) -> Option<DispatchPinBox<'a>>;
+pub type DispatchPinBox<'a> = Pin<Box<dyn future::Future<Output = DispatchResult<'a>>>>;
 
-impl Dispatch<'static> {
-    pub async fn dispatch(&self, dispatcher: &Dispatcher<'static>) -> DispatchResult<'static> {
+impl Dispatch {
+    pub fn new(
+        client: irc::client::Sender,
+        nick: String,
+        sender: String,
+        target: String,
+        text: String,
+    ) -> Dispatch {
+        Dispatch {
+            client,
+            nick,
+            sender,
+            target,
+            text,
+        }
+    }
+
+    pub async fn dispatch(&self, dispatcher: Dispatcher<'static>) -> DispatchResult<'static> {
         if self.text.to_uppercase() == self.text {
             return targets::loud(self.clone()).await;
         };
 
         if self.text.trim().starts_with(&self.nick) {
-            return targets::addressed(self.clone(), *dispatcher).await;
+            let prefix = format!("{}: ", &self.nick);
+            let text = self.text.trim_start_matches(prefix.as_str());
+            let mut parts = text.splitn(2, " ");
+            let mut d = self.clone();
+            if let Some(command) = parts.next() {
+                if let Some(t) = parts.next() {
+                    d.text = t.to_string();
+                    if let Some(cb) = dispatcher(command, d) {
+                        return cb.await;
+                    }
+                }
+            }
         };
 
         Ok(())
@@ -38,39 +65,10 @@ impl Dispatch<'static> {
 }
 
 mod targets {
-    use crate::lib::dispatch::{Dispatch, DispatchResult, Dispatcher};
+    use crate::lib::dispatch::{Dispatch, DispatchResult};
     use crate::lib::loudfile::LoudFile;
-    use futures::*;
-    use std::pin::Pin;
 
-    pub async fn addressed<'a>(
-        dispatch: Dispatch<'a>,
-        dispatcher: Dispatcher<'static>,
-    ) -> DispatchResult<'static> {
-        let res = dispatch.text.splitn(2, " ");
-
-        match res.last() {
-            Some(inner) => {
-                let mut keys = dispatcher.keys();
-                while let Some(key) = keys.next() {
-                    if inner.trim().starts_with(key) {
-                        let new_text = inner.trim_start_matches(key).trim();
-                        if let Some(f) = dispatcher.get(key) {
-                            let mut d2 = dispatch.clone();
-                            d2.text = new_text.to_string();
-                            let f2 = Pin::into_inner(*f);
-                            f2(d2).await?;
-                        }
-                    }
-                }
-            }
-            None => (),
-        };
-
-        return Ok(());
-    }
-
-    pub async fn loud(dispatch: Dispatch<'_>) -> DispatchResult<'static> {
+    pub async fn loud(dispatch: Dispatch) -> DispatchResult<'static> {
         let loudfile = LoudFile::new("loudfile.txt");
 
         println!("LOUD: <{}> {}", dispatch.target, dispatch.text);
@@ -94,33 +92,29 @@ mod targets {
         async fn fetch(
             text: String,
         ) -> Result<String, apis::Error<games_api::GamesByGameNameError>> {
-            let config = Default::default();
+            let config = apis::configuration::Configuration::default();
             if let Ok(api_key) = std::env::var("API_KEY") {
                 let res = games_api::games_by_game_name(
                     &config,
                     &api_key,
                     &text,
-                    None,
-                    None,
-                    None,
+                    Some("youtube"),
+                    Some(""),
+                    Some(""),
                     Some(0),
                 )
-                .await;
+                .await?;
 
-                match res {
-                    Ok(games) => {
-                        if let Some(youtube_url) = &games.data.games.first().unwrap().youtube {
-                            return Ok(youtube_url.to_string());
-                        }
-                    }
-                    Err(e) => return Err(e),
+                if let Some(youtube_url) = &res.data.games.first().unwrap().youtube {
+                    return Ok(youtube_url.to_string());
                 }
             }
 
             Ok(String::from("No youtube url found"))
         }
 
-        pub async fn gamesdb(dispatch: Dispatch<'_>) -> DispatchResult<'static> {
+        pub async fn gamesdb(dispatch: Dispatch) -> DispatchResult<'static> {
+            println!("{}", dispatch.text);
             if dispatch.text == "" {
                 match dispatch.client.send_privmsg(
                     dispatch.target,

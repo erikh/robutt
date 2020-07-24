@@ -41,7 +41,9 @@ impl Dispatch {
     }
 
     pub async fn dispatch(&self, dispatcher: Dispatcher<'static>) -> DispatchResult<'static> {
-        if self.text.to_uppercase() == self.text {
+        let chars_regex = regex::Regex::new("[a-zA-Z]").unwrap();
+
+        if self.text.to_uppercase() == self.text && chars_regex.is_match(&self.text) {
             return targets::loud(self.clone()).await;
         };
 
@@ -114,7 +116,9 @@ mod targets {
 
                     if let Some(youtube_url) = &obj.youtube {
                         if youtube_url != "" {
-                            if youtube_url.starts_with("https://youtube.com") {
+                            if youtube_url.starts_with("https://youtube.com")
+                                || youtube_url.starts_with("https://youtu.be")
+                            {
                                 ret.push(format!("Youtube: {}", youtube_url));
                             } else {
                                 ret.push(format!(

@@ -31,12 +31,12 @@ pub async fn main() -> Result<(), irc::error::Error> {
                         );
 
                         match d.dispatch(dp).await {
-                            Ok(_) => println!("{}", message),
+                            Ok(_) => {}
                             Err(e) => println!("IRC ERROR: {}", e),
                         }
                     }
                 }
-                command => println!("{:?}", command),
+                _ => print!("{}", message),
             },
             Some(Err(e)) => {
                 println!("Error: {}", e);

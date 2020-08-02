@@ -14,6 +14,7 @@ pub fn dispatcher() -> Dispatcher<'static> {
     return |s: &str, dispatch: Dispatch| -> Option<DispatchPinBox<'_>> {
         match s {
             "gamesdb" => Some(Box::pin(targets::commands::gamesdb(dispatch))),
+            "help" => Some(Box::pin(targets::commands::help(dispatch))),
             _ => None,
         }
     };
@@ -57,12 +58,15 @@ impl Dispatch {
             let mut parts = text.splitn(2, " ");
 
             if let Some(command) = parts.next() {
-                if let Some(t) = parts.next() {
-                    let mut d = self.clone();
-                    d.text = t.to_string();
-                    if let Some(cb) = dispatcher(command, d) {
-                        return cb.await;
-                    }
+                let mut d = self.clone();
+
+                d.text = match parts.next() {
+                    Some(t) => t.to_string(),
+                    None => String::from(""),
+                };
+
+                if let Some(cb) = dispatcher(command, d) {
+                    return cb.await;
                 }
             }
 
@@ -100,17 +104,25 @@ mod targets {
     pub mod commands {
         use crate::lib::dispatch::{Dispatch, DispatchResult};
         use openapi::apis::{self, games_api};
+        use std::ops::Index;
 
         async fn fetch(
-            text: String,
-        ) -> Result<String, apis::Error<games_api::GamesByGameNameError>> {
+            search: Vec<&str>,
+            categories: Vec<&str>,
+            pages: Vec<&str>,
+        ) -> Result<Vec<String>, apis::Error<games_api::GamesByGameNameError>> {
             let config = apis::configuration::Configuration::default();
+            let mut joined_categories = categories.join(",");
+            if joined_categories == "" {
+                joined_categories = String::from("youtube,overview");
+            }
+
             if let Ok(api_key) = std::env::var("API_KEY") {
                 let res = games_api::games_by_game_name(
                     &config,
                     &api_key,
-                    &text,
-                    Some("youtube,overview"),
+                    search.join(" ").as_str(),
+                    Some(joined_categories.as_str()),
                     Some(""),
                     Some(""),
                     Some(0),
@@ -118,10 +130,25 @@ mod targets {
                 .await?;
 
                 let mut ret: Vec<String> = Vec::new();
+                let mut page_iter = pages.iter();
 
-                if let Some(obj) = &res.data.games.first() {
+                while let Some(item) = page_iter.next() {
+                    let mut inner_ret: Vec<String> = Vec::new();
+
+                    let page = item.parse::<usize>().unwrap();
+
+                    if res.data.count <= page as i32 {
+                        continue;
+                    }
+
+                    let obj = &res.data.games.index(page);
+
                     if let Some(title) = &obj.game_title {
-                        ret.push(format!("Title: {}", title))
+                        inner_ret.push(format!("Title: {}", title))
+                    }
+
+                    if let Some(id) = &obj.id {
+                        inner_ret.push(format!("URL: https://thegamesdb.net/game.php?id={}", id))
                     }
 
                     if let Some(youtube_url) = &obj.youtube {
@@ -129,9 +156,9 @@ mod targets {
                             if youtube_url.starts_with("https://youtube.com")
                                 || youtube_url.starts_with("https://youtu.be")
                             {
-                                ret.push(format!("Youtube: {}", youtube_url));
+                                inner_ret.push(format!("Youtube: {}", youtube_url));
                             } else {
-                                ret.push(format!(
+                                inner_ret.push(format!(
                                     "Youtube: https://youtube.com/watch?v={}",
                                     youtube_url
                                 ));
@@ -140,28 +167,91 @@ mod targets {
                     }
 
                     if let Some(overview) = &obj.overview {
-                        ret.push(format!("Overview: {}", overview));
+                        inner_ret.push(format!("Overview: {}", overview));
                     }
 
-                    return Ok(ret.join(" / "));
+                    ret.push(inner_ret.join(" / "));
+                }
+
+                return Ok(ret);
+            }
+
+            Ok(vec![String::from("No information found")])
+        }
+
+        pub async fn help(dispatch: Dispatch) -> DispatchResult<'static> {
+            let help_vec = vec![
+                "Try 'gamesdb <title>. Use a +category to fetch a specific category of data that we recognize. Use -# to fetch a specific index of the entries.'",
+                "Example: mega man +youtube -1 -2 -3 # first three items, youtube link",
+            ];
+
+            let mut help = help_vec.iter();
+            let target = dispatch.target;
+            let sender = dispatch.sender;
+
+            while let Some(message) = help.next() {
+                match dispatch
+                    .client
+                    .send_privmsg(&target, format!("{}: {}", sender, message))
+                {
+                    Ok(_) => {}
+                    Err(e) => return Err(irc::error::Error::from(e)),
                 }
             }
 
-            Ok(String::from("No information found"))
+            Ok(())
+        }
+
+        fn parse<'a>(rx: regex::Regex, lead: &str, text: &'a str) -> Vec<&'a str> {
+            let caps = rx.captures_iter(text);
+            return caps
+                .map(|item| -> Vec<&str> {
+                    item.iter()
+                        .skip(1) // first match is always a dupe
+                        .map(|i| i.unwrap().clone().as_str().trim_start_matches(lead))
+                        .collect()
+                })
+                .flatten()
+                .collect();
         }
 
         pub async fn gamesdb(dispatch: Dispatch) -> DispatchResult<'static> {
             if dispatch.text == "" {
-                match dispatch.client.send_privmsg(
-                    dispatch.target,
-                    format!("{}: Try 'gamesdb <title>'", dispatch.sender),
-                ) {
-                    Ok(_) => Ok(()),
-                    Err(e) => Err(irc::error::Error::from(e)),
-                }
+                dispatch
+                    .client
+                    .send_privmsg(dispatch.target, "Invalid query: try `help`")
             } else {
-                match fetch(dispatch.text).await {
-                    Ok(text) => dispatch.client.send_privmsg(dispatch.target, text),
+                // these are incredibly brittle.
+                let categories_rx =
+                    regex::Regex::new("(?:^|[^\\w]*)(\\+[a-z]+)(?:[^\\w]|$)").unwrap();
+                let pages_rx = regex::Regex::new("(?:^|[^\\w]*)(-[0-9]+)(?:[^\\w]|$)").unwrap();
+                let search_rx = regex::Regex::new("(?:^|\\s)([^-+][^\\s]+)").unwrap();
+
+                let categories = parse(categories_rx, "+", &dispatch.text);
+                println!("CATEGORIES: {:?}", categories);
+
+                let pages = parse(pages_rx, "-", &dispatch.text);
+                println!("PAGES: {:?}", pages);
+
+                let search = parse(search_rx, "", &dispatch.text);
+                println!("SEARCH {:?}", search);
+
+                match fetch(search, categories, pages).await {
+                    Ok(text) => {
+                        if text.len() > 0 {
+                            let mut iter = text.iter();
+                            while let Some(t) = iter.next() {
+                                if t.trim().len() != 0 {
+                                    dispatch
+                                        .client
+                                        .send_privmsg(dispatch.target.to_string(), t)
+                                        .unwrap();
+                                }
+                            }
+                        }
+
+                        Ok(())
+                    }
                     Err(apis::Error::Io(e)) => Err(irc::error::Error::from(e)),
                     Err(e) => {
                         println!("Error: {:?}", e);

@@ -23,6 +23,11 @@ pub type DispatchResult<'a> = Result<(), irc::error::Error>;
 pub type Dispatcher<'a> = fn(s: &str, dispatch: Dispatch) -> Option<DispatchPinBox<'a>>;
 pub type DispatchPinBox<'a> = Pin<Box<dyn future::Future<Output = DispatchResult<'a>>>>;
 
+fn is_loud(text: &String) -> bool {
+    let chars_regex = regex::Regex::new("[a-zA-Z ]{5}").unwrap();
+    text.to_uppercase().eq(text) && chars_regex.is_match(text) && text.len() >= 5
+}
+
 impl Dispatch {
     pub fn new(
         client: irc::client::Sender,
@@ -41,29 +46,30 @@ impl Dispatch {
     }
 
     pub async fn dispatch(&self, dispatcher: Dispatcher<'static>) -> DispatchResult<'static> {
-        let chars_regex = regex::Regex::new("[a-zA-Z]{5}").unwrap();
+        let prefix = format!("{}: ", &self.nick);
+        let text = self.text.trim_start_matches(prefix.as_str()).to_string();
 
-        if self.text.to_uppercase() == self.text
-            && chars_regex.is_match(&self.text)
-            && self.text.len() >= 5
-        {
-            return targets::loud(self.clone()).await;
-        };
-
-        if self.text.trim().starts_with(&self.nick) {
-            let prefix = format!("{}: ", &self.nick);
-            let text = self.text.trim_start_matches(prefix.as_str());
-            let mut parts = text.splitn(2, " ");
+        if is_loud(&text) {
             let mut d = self.clone();
+            d.text = text;
+            return targets::loud(d).await;
+        } else if self.text != text {
+            let mut parts = text.splitn(2, " ");
+
             if let Some(command) = parts.next() {
                 if let Some(t) = parts.next() {
+                    let mut d = self.clone();
                     d.text = t.to_string();
                     if let Some(cb) = dispatcher(command, d) {
                         return cb.await;
                     }
                 }
             }
-        };
+
+            let mut d = self.clone();
+            d.text = String::from("");
+            return targets::loud(d).await;
+        }
 
         Ok(())
     }
@@ -76,9 +82,10 @@ mod targets {
     pub async fn loud(dispatch: Dispatch) -> DispatchResult<'static> {
         let loudfile = LoudFile::new("loudfile.txt");
 
-        println!("LOUD: <{}> {}", dispatch.target, dispatch.text);
-
-        loudfile.append(&dispatch.text).unwrap();
+        if dispatch.text.len() > 0 {
+            println!("LOUD RECORDED: <{}> {}", dispatch.target, dispatch.text);
+            loudfile.append(&dispatch.text).unwrap();
+        }
 
         if let Some(line) = loudfile.get_line() {
             return match dispatch.client.send_privmsg(dispatch.target, line) {

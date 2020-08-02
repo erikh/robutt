@@ -41,9 +41,12 @@ impl Dispatch {
     }
 
     pub async fn dispatch(&self, dispatcher: Dispatcher<'static>) -> DispatchResult<'static> {
-        let chars_regex = regex::Regex::new("[a-zA-Z]").unwrap();
+        let chars_regex = regex::Regex::new("[a-zA-Z]{5}").unwrap();
 
-        if self.text.to_uppercase() == self.text && chars_regex.is_match(&self.text) {
+        if self.text.to_uppercase() == self.text
+            && chars_regex.is_match(&self.text)
+            && self.text.len() >= 5
+        {
             return targets::loud(self.clone()).await;
         };
 

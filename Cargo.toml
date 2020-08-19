@@ -12,7 +12,7 @@ rand = ">=0"
 openapi = { path = './gamesdbapi' }
 futures = "^0.3"
 futures-util = '>=0'
-tokio = '>=0'
+tokio = { version = '>=0', features = [ 'rt-core', 'rt-threaded' ] }
 regex = '>=0'
 discord = { git = "https://github.com/SpaceManiac/discord-rs", branch = "master", features = [ ] }
 

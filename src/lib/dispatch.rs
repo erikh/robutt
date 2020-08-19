@@ -1,10 +1,8 @@
 use futures::*;
-use std::pin::Pin;
-use std::sync::mpsc::Sender;
+use tokio::sync::mpsc;
 
 #[derive(Clone, Debug)]
 pub struct Dispatch {
-    client: Sender<DispatchReply>,
     nick: String,
     sender: String,
     target: String,
@@ -17,19 +15,17 @@ pub struct DispatchReply {
     text: String,
 }
 
-pub fn dispatcher() -> Dispatcher<'static> {
-    return |s: &str, dispatch: Dispatch| -> Option<DispatchPinBox<'_>> {
-        match s {
-            "gamesdb" => Some(Box::pin(targets::commands::gamesdb(dispatch))),
-            "help" => Some(Box::pin(targets::commands::help(dispatch))),
-            _ => None,
-        }
-    };
+async fn dispatcher(
+    s: &str,
+    dispatch: Dispatch,
+    sender: &mut mpsc::Sender<DispatchReply>,
+) -> Result<(), ()> {
+    match s {
+        "gamesdb" => targets::commands::gamesdb(dispatch, sender).await,
+        "help" => targets::commands::help(dispatch, sender).await,
+        _ => Err(()),
+    }
 }
-
-pub type DispatchResult<'a> = Result<(), Box<dyn std::error::Error>>;
-pub type Dispatcher<'a> = fn(s: &str, dispatch: Dispatch) -> Option<DispatchPinBox<'a>>;
-pub type DispatchPinBox<'a> = Pin<Box<dyn future::Future<Output = DispatchResult<'a>>>>;
 
 fn is_loud(text: &String) -> bool {
     let chars_regex = regex::Regex::new("[a-zA-Z ]{5}").unwrap();
@@ -47,30 +43,25 @@ impl DispatchReply {
 }
 
 impl Dispatch {
-    pub fn new(
-        client: Sender<DispatchReply>,
-        nick: String,
-        sender: String,
-        target: String,
-        text: String,
-    ) -> Dispatch {
+    pub fn new(nick: String, sender: String, target: String, text: String) -> Dispatch {
         Dispatch {
-            client,
             nick,
-            sender,
+            sender: sender.clone(),
             target,
             text,
         }
     }
 
-    pub async fn dispatch(&self, dispatcher: Dispatcher<'static>) -> DispatchResult<'static> {
+    pub async fn dispatch(&self) -> (Result<(), ()>, mpsc::Receiver<DispatchReply>) {
         let prefix = format!("{}: ", &self.nick);
         let text = self.text.trim_start_matches(prefix.as_str()).to_string();
-
+        let (s, r) = mpsc::channel::<DispatchReply>(100);
+        let mut res: Result<(), ()> = Ok(());
         if is_loud(&text) {
             let mut d = self.clone();
             d.text = text;
-            return targets::loud(d).await;
+            let mut tmp_s = s.clone();
+            res = targets::loud(d, &mut tmp_s).await;
         } else if self.text != text {
             let mut parts = text.splitn(2, " ");
 
@@ -82,25 +73,30 @@ impl Dispatch {
                     None => String::from(""),
                 };
 
-                if let Some(cb) = dispatcher(command, d) {
-                    return cb.await;
-                }
+                let mut tmp_s = s.clone();
+                res = dispatcher(command, d, &mut tmp_s).await;
+            } else {
+                let mut d = self.clone();
+                d.text = String::from("");
+                let mut tmp_s = s.clone();
+                res = targets::loud(d, &mut tmp_s).await;
             }
-
-            let mut d = self.clone();
-            d.text = String::from("");
-            return targets::loud(d).await;
         }
 
-        Ok(())
+        drop(s);
+        return (res, r);
     }
 }
 
 mod targets {
-    use crate::lib::dispatch::{Dispatch, DispatchReply, DispatchResult};
+    use crate::lib::dispatch::{Dispatch, DispatchReply};
     use crate::lib::loudfile::LoudFile;
+    use tokio::sync::mpsc;
 
-    pub async fn loud(dispatch: Dispatch) -> DispatchResult<'static> {
+    pub async fn loud(
+        dispatch: Dispatch,
+        sender: &mut mpsc::Sender<DispatchReply>,
+    ) -> Result<(), ()> {
         let loudfile = LoudFile::new("loudfile.txt");
 
         if dispatch.text.len() > 0 {
@@ -109,12 +105,16 @@ mod targets {
         }
 
         if let Some(line) = loudfile.get_line() {
-            return match dispatch.client.send(DispatchReply {
-                target: dispatch.target,
-                text: line,
-            }) {
+            return match sender
+                .send(DispatchReply {
+                    target: dispatch.target,
+                    text: line,
+                })
+                .await
+            {
                 Ok(_) => Ok(()),
-                Err(e) => Err(Box::new(e)),
+                // FIXME log
+                Err(_) => Err(()),
             };
         }
 
@@ -122,9 +122,10 @@ mod targets {
     }
 
     pub mod commands {
-        use crate::lib::dispatch::{Dispatch, DispatchReply, DispatchResult};
+        use crate::lib::dispatch::{Dispatch, DispatchReply};
         use openapi::apis::{self, games_api};
         use std::ops::Index;
+        use tokio::sync::mpsc;
 
         async fn fetch(
             search: Vec<&str>,
@@ -199,7 +200,10 @@ mod targets {
             Ok(vec![String::from("No information found")])
         }
 
-        pub async fn help(dispatch: Dispatch) -> DispatchResult<'static> {
+        pub async fn help(
+            dispatch: Dispatch,
+            send: &mut mpsc::Sender<DispatchReply>,
+        ) -> Result<(), ()> {
             let help_vec = vec![
                 "Try 'gamesdb <title>. Use a +category to fetch a specific category of data that we recognize. Use -# to fetch a specific index of the entries.'",
                 "Example: mega man +youtube -1 -2 -3 # first three items, youtube link",
@@ -210,12 +214,16 @@ mod targets {
             let sender = dispatch.sender;
 
             while let Some(message) = help.next() {
-                match dispatch.client.send(DispatchReply {
-                    target: target.to_string(),
-                    text: format!("{}: {}", sender, message),
-                }) {
+                match send
+                    .send(DispatchReply {
+                        target: target.to_string(),
+                        text: format!("{}: {}", sender, message),
+                    })
+                    .await
+                {
                     Ok(_) => {}
-                    Err(e) => return Err(Box::new(e)),
+                    // FIXME log
+                    Err(_) => return Err(()),
                 }
             }
 
@@ -235,12 +243,17 @@ mod targets {
                 .collect();
         }
 
-        pub async fn gamesdb(dispatch: Dispatch) -> DispatchResult<'static> {
+        pub async fn gamesdb(
+            dispatch: Dispatch,
+            sender: &mut mpsc::Sender<DispatchReply>,
+        ) -> Result<(), ()> {
             if dispatch.text == "" {
-                dispatch.client.send(DispatchReply {
-                    target: dispatch.target,
-                    text: String::from("Invalid query: try `help`"),
-                })?;
+                sender
+                    .send(DispatchReply {
+                        target: dispatch.target,
+                        text: String::from("Invalid query: try `help`"),
+                    })
+                    .await;
             } else {
                 // these are incredibly brittle.
                 let categories_rx =
@@ -263,12 +276,12 @@ mod targets {
                             let mut iter = text.iter();
                             while let Some(t) = iter.next() {
                                 if t.trim().len() != 0 {
-                                    dispatch
-                                        .client
+                                    sender
                                         .send(DispatchReply {
                                             target: dispatch.target.to_string(),
                                             text: t.to_string(),
                                         })
+                                        .await
                                         .unwrap();
                                 }
                             }
@@ -276,10 +289,12 @@ mod targets {
                     }
                     Err(e) => {
                         println!("Error: {:?}", e);
-                        dispatch.client.send(DispatchReply {
-                            target: dispatch.target,
-                            text: String::from("Error fetching data"),
-                        })?;
+                        sender
+                            .send(DispatchReply {
+                                target: dispatch.target,
+                                text: String::from("Error fetching data"),
+                            })
+                            .await;
                     }
                 }
             }

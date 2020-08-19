@@ -38,8 +38,14 @@ pub async fn discord_loop(discord_token: String) -> Result<(), ()> {
             loop {
                 if let Ok(MessageCreate(message)) = discord_client.recv_event() {
                     if message.author.name != state.user().username {
-                        println!("<{}> {}", message.author.name, message.content);
+                        println!(
+                            "(user: {:?}) <{}> {}",
+                            state.user().id,
+                            message.author.name,
+                            message.content
+                        );
                         let d = Dispatch::new(
+                            state.user().id.0,
                             state.user().username.to_string(),
                             message.author.name,
                             message.channel_id.to_string(),
@@ -85,6 +91,7 @@ pub async fn irc_loop(config: Config) -> Result<(), ()> {
                                 println!("<{}> {}", prefix, text.to_string());
                                 if let Some(prefix) = message.source_nickname() {
                                     let d = Dispatch::new(
+                                        0,
                                         my_nickname.to_string(),
                                         prefix.to_string(),
                                         message.response_target().unwrap().to_string(),

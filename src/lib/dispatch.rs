@@ -1,8 +1,8 @@
-use futures::*;
 use tokio::sync::mpsc;
 
 #[derive(Clone, Debug)]
 pub struct Dispatch {
+    id: u64,
     nick: String,
     sender: String,
     target: String,
@@ -23,11 +23,11 @@ async fn dispatcher(
     match s {
         "gamesdb" => targets::commands::gamesdb(dispatch, sender).await,
         "help" => targets::commands::help(dispatch, sender).await,
-        _ => Err(()),
+        _ => targets::loud(dispatch, sender).await,
     }
 }
 
-fn is_loud(text: &String) -> bool {
+pub fn is_loud(text: &String) -> bool {
     let chars_regex = regex::Regex::new("[a-zA-Z ]{5}").unwrap();
     text.to_uppercase().eq(text) && chars_regex.is_match(text) && text.len() >= 5
 }
@@ -43,8 +43,9 @@ impl DispatchReply {
 }
 
 impl Dispatch {
-    pub fn new(nick: String, sender: String, target: String, text: String) -> Dispatch {
+    pub fn new(id: u64, nick: String, sender: String, target: String, text: String) -> Dispatch {
         Dispatch {
+            id,
             nick,
             sender: sender.clone(),
             target,
@@ -53,8 +54,24 @@ impl Dispatch {
     }
 
     pub async fn dispatch(&self) -> (Result<(), ()>, mpsc::Receiver<DispatchReply>) {
-        let prefix = format!("{}: ", &self.nick);
-        let text = self.text.trim_start_matches(prefix.as_str()).to_string();
+        let prefix = format!("{}", &self.nick);
+        let prefix_discord = format!("<@{}>", self.id);
+        // kill me
+        let prefix_discord2 = format!("<@!{}>", self.id);
+        let mut text = if self.text.starts_with(prefix.as_str()) {
+            self.text.trim_start_matches(prefix.as_str())
+        } else if self.text.starts_with(prefix_discord.as_str()) {
+            self.text.trim_start_matches(prefix_discord.as_str())
+        } else if self.text.starts_with(prefix_discord2.as_str()) {
+            self.text.trim_start_matches(prefix_discord2.as_str())
+        } else {
+            &self.text
+        }
+        .trim()
+        .to_string();
+
+        text = text.trim_start_matches(":").trim().to_string();
+
         let (s, r) = mpsc::channel::<DispatchReply>(100);
         let mut res: Result<(), ()> = Ok(());
         if is_loud(&text) {
@@ -89,6 +106,7 @@ impl Dispatch {
 }
 
 mod targets {
+    use crate::lib::dispatch::is_loud;
     use crate::lib::dispatch::{Dispatch, DispatchReply};
     use crate::lib::loudfile::LoudFile;
     use tokio::sync::mpsc;
@@ -99,7 +117,7 @@ mod targets {
     ) -> Result<(), ()> {
         let loudfile = LoudFile::new("loudfile.txt");
 
-        if dispatch.text.len() > 0 {
+        if is_loud(&dispatch.text) && !dispatch.text.trim().is_empty() {
             println!("LOUD RECORDED: <{}> {}", dispatch.target, dispatch.text);
             loudfile.append(&dispatch.text).unwrap();
         }

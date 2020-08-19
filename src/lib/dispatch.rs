@@ -1,11 +1,18 @@
 use futures::*;
 use std::pin::Pin;
+use std::sync::mpsc::Sender;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Dispatch {
-    client: irc::client::Sender,
+    client: Sender<DispatchReply>,
     nick: String,
     sender: String,
+    target: String,
+    text: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct DispatchReply {
     target: String,
     text: String,
 }
@@ -20,7 +27,7 @@ pub fn dispatcher() -> Dispatcher<'static> {
     };
 }
 
-pub type DispatchResult<'a> = Result<(), irc::error::Error>;
+pub type DispatchResult<'a> = Result<(), Box<dyn std::error::Error>>;
 pub type Dispatcher<'a> = fn(s: &str, dispatch: Dispatch) -> Option<DispatchPinBox<'a>>;
 pub type DispatchPinBox<'a> = Pin<Box<dyn future::Future<Output = DispatchResult<'a>>>>;
 
@@ -29,9 +36,19 @@ fn is_loud(text: &String) -> bool {
     text.to_uppercase().eq(text) && chars_regex.is_match(text) && text.len() >= 5
 }
 
+impl DispatchReply {
+    pub fn get_target(&self) -> String {
+        return self.target.to_string();
+    }
+
+    pub fn get_text(&self) -> String {
+        return self.text.to_string();
+    }
+}
+
 impl Dispatch {
     pub fn new(
-        client: irc::client::Sender,
+        client: Sender<DispatchReply>,
         nick: String,
         sender: String,
         target: String,
@@ -80,7 +97,7 @@ impl Dispatch {
 }
 
 mod targets {
-    use crate::lib::dispatch::{Dispatch, DispatchResult};
+    use crate::lib::dispatch::{Dispatch, DispatchReply, DispatchResult};
     use crate::lib::loudfile::LoudFile;
 
     pub async fn loud(dispatch: Dispatch) -> DispatchResult<'static> {
@@ -92,9 +109,12 @@ mod targets {
         }
 
         if let Some(line) = loudfile.get_line() {
-            return match dispatch.client.send_privmsg(dispatch.target, line) {
+            return match dispatch.client.send(DispatchReply {
+                target: dispatch.target,
+                text: line,
+            }) {
                 Ok(_) => Ok(()),
-                Err(e) => Err(e),
+                Err(e) => Err(Box::new(e)),
             };
         }
 
@@ -102,7 +122,7 @@ mod targets {
     }
 
     pub mod commands {
-        use crate::lib::dispatch::{Dispatch, DispatchResult};
+        use crate::lib::dispatch::{Dispatch, DispatchReply, DispatchResult};
         use openapi::apis::{self, games_api};
         use std::ops::Index;
 
@@ -190,12 +210,12 @@ mod targets {
             let sender = dispatch.sender;
 
             while let Some(message) = help.next() {
-                match dispatch
-                    .client
-                    .send_privmsg(&target, format!("{}: {}", sender, message))
-                {
+                match dispatch.client.send(DispatchReply {
+                    target: target.to_string(),
+                    text: format!("{}: {}", sender, message),
+                }) {
                     Ok(_) => {}
-                    Err(e) => return Err(irc::error::Error::from(e)),
+                    Err(e) => return Err(Box::new(e)),
                 }
             }
 
@@ -217,9 +237,10 @@ mod targets {
 
         pub async fn gamesdb(dispatch: Dispatch) -> DispatchResult<'static> {
             if dispatch.text == "" {
-                dispatch
-                    .client
-                    .send_privmsg(dispatch.target, "Invalid query: try `help`")
+                dispatch.client.send(DispatchReply {
+                    target: dispatch.target,
+                    text: String::from("Invalid query: try `help`"),
+                })?;
             } else {
                 // these are incredibly brittle.
                 let categories_rx =
@@ -244,23 +265,25 @@ mod targets {
                                 if t.trim().len() != 0 {
                                     dispatch
                                         .client
-                                        .send_privmsg(dispatch.target.to_string(), t)
+                                        .send(DispatchReply {
+                                            target: dispatch.target.to_string(),
+                                            text: t.to_string(),
+                                        })
                                         .unwrap();
                                 }
                             }
                         }
-
-                        Ok(())
                     }
-                    Err(apis::Error::Io(e)) => Err(irc::error::Error::from(e)),
                     Err(e) => {
                         println!("Error: {:?}", e);
-                        dispatch
-                            .client
-                            .send_privmsg(dispatch.target, "Error fetching data")
+                        dispatch.client.send(DispatchReply {
+                            target: dispatch.target,
+                            text: String::from("Error fetching data"),
+                        })?;
                     }
                 }
             }
+            Ok(())
         }
     }
 }

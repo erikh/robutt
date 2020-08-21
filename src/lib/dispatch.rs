@@ -324,6 +324,7 @@ mod targets {
             Ok(())
         }
 
+        // http://www.textfiles.com/humor/deep.txt
         const THOUGHTS_FILE: &str = "deep.txt";
 
         pub async fn thoughts(
@@ -342,7 +343,12 @@ mod targets {
                     tmp = String::from("");
                 }
 
-                tmp += &line
+                if tmp != "" {
+                    tmp += " "
+                }
+
+                tmp += &line;
+                tmp = tmp.trim().to_string();
             }
 
             let quote = &quotes[random::<usize>() % quotes.len()];

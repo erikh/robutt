@@ -22,6 +22,7 @@ async fn dispatcher(
 ) -> Result<(), ()> {
     match s {
         "gamesdb" => targets::commands::gamesdb(dispatch, sender).await,
+        "thoughts?" => targets::commands::thoughts(dispatch, sender).await,
         "help" => targets::commands::help(dispatch, sender).await,
         _ => targets::loud(dispatch, sender).await,
     }
@@ -142,6 +143,10 @@ mod targets {
     pub mod commands {
         use crate::lib::dispatch::{Dispatch, DispatchReply};
         use openapi::apis::{self, games_api};
+        use rand::prelude::*;
+        use std::fs::File;
+        use std::io::prelude::*;
+        use std::io::BufReader;
         use std::ops::Index;
         use tokio::sync::mpsc;
 
@@ -316,6 +321,42 @@ mod targets {
                     }
                 }
             }
+            Ok(())
+        }
+
+        const THOUGHTS_FILE: &str = "deep.txt";
+
+        pub async fn thoughts(
+            dispatch: Dispatch,
+            sender: &mut mpsc::Sender<DispatchReply>,
+        ) -> Result<(), ()> {
+            let file = File::open(THOUGHTS_FILE).unwrap();
+            let br = BufReader::new(file);
+            let mut lines = br.lines();
+            let mut quotes: Vec<String> = Vec::new();
+            let mut tmp = String::from("");
+
+            while let Some(Ok(line)) = lines.next() {
+                if line.trim().is_empty() {
+                    quotes.push(tmp.to_string());
+                    tmp = String::from("");
+                }
+
+                tmp += &line
+            }
+
+            let quote = &quotes[random::<usize>() % quotes.len()];
+            match sender
+                .send(DispatchReply {
+                    target: dispatch.target,
+                    text: quote.to_string(),
+                })
+                .await
+            {
+                Ok(_) => {}
+                Err(_) => {}
+            }
+
             Ok(())
         }
     }

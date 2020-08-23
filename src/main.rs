@@ -6,6 +6,7 @@ use futures::*;
 use irc::client::prelude::*;
 use lib::config::load_config;
 use lib::dispatch::Dispatch;
+use std::ops::Index;
 use tokio::runtime::Builder;
 use tokio::task;
 
@@ -89,6 +90,9 @@ pub async fn irc_loop(config: Config) -> Result<(), ()> {
                         Some(Ok(message)) => match message.clone().command {
                             Command::PRIVMSG(prefix, text) => {
                                 println!("<{}> {}", prefix, text.to_string());
+                                if text.len() > 0 && text.as_bytes()[0] == 0x01 {
+                                    continue;
+                                }
                                 if let Some(prefix) = message.source_nickname() {
                                     let d = Dispatch::new(
                                         0,

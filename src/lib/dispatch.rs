@@ -55,11 +55,11 @@ impl Dispatch {
     }
 
     pub async fn dispatch(&self) -> (Result<(), ()>, mpsc::Receiver<DispatchReply>) {
-        let prefix = format!("{}", &self.nick);
+        let prefix = format!("{}:", &self.nick);
         let prefix_discord = format!("<@{}>", self.id);
         // kill me
         let prefix_discord2 = format!("<@!{}>", self.id);
-        let mut text = if self.text.starts_with(prefix.as_str()) {
+        let text = if self.text.starts_with(prefix.as_str()) {
             self.text.trim_start_matches(prefix.as_str())
         } else if self.text.starts_with(prefix_discord.as_str()) {
             self.text.trim_start_matches(prefix_discord.as_str())
@@ -70,8 +70,6 @@ impl Dispatch {
         }
         .trim()
         .to_string();
-
-        text = text.trim_start_matches(":").trim().to_string();
 
         let (s, r) = mpsc::channel::<DispatchReply>(100);
         let mut res: Result<(), ()> = Ok(());
@@ -86,18 +84,16 @@ impl Dispatch {
             if let Some(command) = parts.next() {
                 let mut d = self.clone();
 
-                d.text = match parts.next() {
-                    Some(t) => t.to_string(),
-                    None => String::from(""),
+                res = match parts.next() {
+                    Some(t) => {
+                        d.text = t.to_string();
+                        dispatcher(command, d, &mut s.clone()).await
+                    }
+                    None => {
+                        d.text = String::from("");
+                        targets::loud(d, &mut s.clone()).await
+                    }
                 };
-
-                let mut tmp_s = s.clone();
-                res = dispatcher(command, d, &mut tmp_s).await;
-            } else {
-                let mut d = self.clone();
-                d.text = String::from("");
-                let mut tmp_s = s.clone();
-                res = targets::loud(d, &mut tmp_s).await;
             }
         }
 

@@ -29,7 +29,7 @@ async fn dispatcher(
 }
 
 pub fn is_loud(text: &String) -> bool {
-    let chars_regex = regex::Regex::new("[a-zA-Z ]{5}").unwrap();
+    let chars_regex = regex::Regex::new("[A-Z ]{5}").unwrap();
     text.to_uppercase().eq(text) && chars_regex.is_match(text) && text.len() >= 5
 }
 
@@ -55,7 +55,7 @@ impl Dispatch {
     }
 
     pub async fn dispatch(&self) -> (Result<(), ()>, mpsc::Receiver<DispatchReply>) {
-        let prefix = format!("{}:", &self.nick);
+        let prefix = format!("{}: ", &self.nick);
         let prefix_discord = format!("<@{}>", self.id);
         // kill me
         let prefix_discord2 = format!("<@!{}>", self.id);
@@ -72,30 +72,31 @@ impl Dispatch {
         .to_string();
 
         let (s, r) = mpsc::channel::<DispatchReply>(100);
-        let mut res: Result<(), ()> = Ok(());
-        if is_loud(&text) {
+        let res = if is_loud(&text) {
             let mut d = self.clone();
             d.text = text;
             let mut tmp_s = s.clone();
-            res = targets::loud(d, &mut tmp_s).await;
+            targets::loud(d, &mut tmp_s).await
         } else if self.text != text {
             let mut parts = text.splitn(2, " ");
+            let mut d = self.clone();
 
             if let Some(command) = parts.next() {
-                let mut d = self.clone();
-
-                res = match parts.next() {
+                match parts.next() {
                     Some(t) => {
                         d.text = t.to_string();
-                        dispatcher(command, d, &mut s.clone()).await
                     }
-                    None => {
-                        d.text = String::from("");
-                        targets::loud(d, &mut s.clone()).await
-                    }
+                    None => {}
                 };
+
+                dispatcher(command, d, &mut s.clone()).await
+            } else {
+                d.text = String::from("");
+                targets::loud(d, &mut s.clone()).await
             }
-        }
+        } else {
+            Ok(())
+        };
 
         drop(s);
         return (res, r);
@@ -224,6 +225,7 @@ mod targets {
             send: &mut mpsc::Sender<DispatchReply>,
         ) -> Result<(), ()> {
             let help_vec = vec![
+                "Try asking robutt what she thinks.",
                 "Try 'gamesdb <title>. Use a +category to fetch a specific category of data that we recognize. Use -# to fetch a specific index of the entries.'",
                 "Example: mega man +youtube -1 -2 -3 # first three items, youtube link",
             ];

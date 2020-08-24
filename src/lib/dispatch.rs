@@ -1,4 +1,4 @@
-use tokio::sync::mpsc;
+use tokio::sync::mpsc::{self, error::SendError};
 
 #[derive(Clone, Debug)]
 pub struct Dispatch {
@@ -15,11 +15,58 @@ pub struct DispatchReply {
     text: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct Error {
+    message: String,
+}
+
+impl Error {
+    pub fn new(message: String) -> Self {
+        Self { message }
+    }
+
+    pub fn new_from_error(e: &dyn std::error::Error) -> Self {
+        Self {
+            message: format!("{}", e),
+        }
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(t: std::io::Error) -> Self {
+        Self {
+            message: format!("{}", t),
+        }
+    }
+}
+
+impl From<SendError<DispatchReply>> for Error {
+    fn from(t: SendError<DispatchReply>) -> Self {
+        Self {
+            message: format!("{}", t),
+        }
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self)
+    }
+}
+
+pub type DispatchResult = Result<(), Error>;
+
 async fn dispatcher(
     s: &str,
     dispatch: Dispatch,
     sender: &mut mpsc::Sender<DispatchReply>,
-) -> Result<(), ()> {
+) -> DispatchResult {
     match s {
         "gamesdb" => targets::commands::gamesdb(dispatch, sender).await,
         "thoughts?" => targets::commands::thoughts(dispatch, sender).await,
@@ -54,7 +101,7 @@ impl Dispatch {
         }
     }
 
-    pub async fn dispatch(&self) -> (Result<(), ()>, mpsc::Receiver<DispatchReply>) {
+    pub async fn dispatch(&self) -> (DispatchResult, mpsc::Receiver<DispatchReply>) {
         let prefix = format!("{}: ", &self.nick);
         let prefix_discord = format!("<@{}>", self.id);
         // kill me
@@ -105,14 +152,14 @@ impl Dispatch {
 
 mod targets {
     use crate::lib::dispatch::is_loud;
-    use crate::lib::dispatch::{Dispatch, DispatchReply};
+    use crate::lib::dispatch::{Dispatch, DispatchReply, DispatchResult};
     use crate::lib::loudfile::LoudFile;
     use tokio::sync::mpsc;
 
     pub async fn loud(
         dispatch: Dispatch,
         sender: &mut mpsc::Sender<DispatchReply>,
-    ) -> Result<(), ()> {
+    ) -> DispatchResult {
         let loudfile = LoudFile::new("loudfile.txt");
 
         if is_loud(&dispatch.text) && !dispatch.text.trim().is_empty() {
@@ -121,24 +168,19 @@ mod targets {
         }
 
         if let Some(line) = loudfile.get_line() {
-            return match sender
+            sender
                 .send(DispatchReply {
                     target: dispatch.target,
                     text: line,
                 })
-                .await
-            {
-                Ok(_) => Ok(()),
-                // FIXME log
-                Err(_) => Err(()),
-            };
+                .await?;
         }
 
         Ok(())
     }
 
     pub mod commands {
-        use crate::lib::dispatch::{Dispatch, DispatchReply};
+        use crate::lib::dispatch::{Dispatch, DispatchReply, DispatchResult};
         use openapi::apis::{self, games_api};
         use rand::prelude::*;
         use std::fs::File;
@@ -183,7 +225,6 @@ mod targets {
                     }
 
                     let obj = &res.data.games.index(page);
-
                     if let Some(title) = &obj.game_title {
                         inner_ret.push(format!("Title: {}", title))
                     }
@@ -223,7 +264,7 @@ mod targets {
         pub async fn help(
             dispatch: Dispatch,
             send: &mut mpsc::Sender<DispatchReply>,
-        ) -> Result<(), ()> {
+        ) -> DispatchResult {
             let help_vec = vec![
                 "Try asking robutt what she thinks.",
                 "Try 'gamesdb <title>. Use a +category to fetch a specific category of data that we recognize. Use -# to fetch a specific index of the entries.'",
@@ -235,17 +276,11 @@ mod targets {
             let sender = dispatch.sender;
 
             while let Some(message) = help.next() {
-                match send
-                    .send(DispatchReply {
-                        target: target.to_string(),
-                        text: format!("{}: {}", sender, message),
-                    })
-                    .await
-                {
-                    Ok(_) => {}
-                    // FIXME log
-                    Err(_) => return Err(()),
-                }
+                send.send(DispatchReply {
+                    target: target.to_string(),
+                    text: format!("{}: {}", sender, message),
+                })
+                .await?;
             }
 
             Ok(())
@@ -267,14 +302,14 @@ mod targets {
         pub async fn gamesdb(
             dispatch: Dispatch,
             sender: &mut mpsc::Sender<DispatchReply>,
-        ) -> Result<(), ()> {
+        ) -> DispatchResult {
             if dispatch.text == "" {
                 sender
                     .send(DispatchReply {
                         target: dispatch.target,
                         text: String::from("Invalid query: try `help`"),
                     })
-                    .await;
+                    .await?;
             } else {
                 // these are incredibly brittle.
                 let categories_rx =
@@ -315,7 +350,7 @@ mod targets {
                                 target: dispatch.target,
                                 text: String::from("Error fetching data"),
                             })
-                            .await;
+                            .await?;
                     }
                 }
             }
@@ -328,7 +363,7 @@ mod targets {
         pub async fn thoughts(
             dispatch: Dispatch,
             sender: &mut mpsc::Sender<DispatchReply>,
-        ) -> Result<(), ()> {
+        ) -> DispatchResult {
             let file = File::open(THOUGHTS_FILE).unwrap();
             let br = BufReader::new(file);
             let mut lines = br.lines();
@@ -350,17 +385,12 @@ mod targets {
             }
 
             let quote = &quotes[random::<usize>() % quotes.len()];
-            match sender
+            sender
                 .send(DispatchReply {
                     target: dispatch.target,
                     text: quote.to_string(),
                 })
-                .await
-            {
-                Ok(_) => {}
-                Err(_) => {}
-            }
-
+                .await?;
             Ok(())
         }
     }

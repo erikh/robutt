@@ -5,18 +5,17 @@ use discord::Discord;
 use futures::*;
 use irc::client::prelude::*;
 use lib::config::load_config;
-use lib::dispatch::Dispatch;
-use std::ops::Index;
+use lib::dispatch::{Dispatch, DispatchResult};
 use tokio::runtime::Builder;
 use tokio::task;
 
-pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+pub fn main() -> DispatchResult {
     let config = load_config();
     let mut r = Builder::new().threaded_scheduler().enable_all().build()?;
 
     if let Ok(discord_token) = std::env::var("DISCORD_TOKEN") {
         r.spawn(irc_loop(config));
-        r.block_on(discord_loop(discord_token));
+        r.block_on(discord_loop(discord_token))?;
     } else {
         r.block_on(irc_loop(config)).unwrap();
     }
@@ -29,7 +28,7 @@ pub fn err_exit(e: Box<dyn std::error::Error>) {
     std::process::exit(1);
 }
 
-pub async fn discord_loop(discord_token: String) -> Result<(), ()> {
+pub async fn discord_loop(discord_token: String) -> DispatchResult {
     println!("Entering discord loop");
     task::yield_now().await;
     if let Ok(discord) = Discord::from_bot_token(&discord_token) {
@@ -72,7 +71,7 @@ pub async fn discord_loop(discord_token: String) -> Result<(), ()> {
     Ok(())
 }
 
-pub async fn irc_loop(config: Config) -> Result<(), ()> {
+pub async fn irc_loop(config: Config) -> DispatchResult {
     println!("Entering irc loop");
     if let Ok(my_nickname) = config.nickname() {
         if let Ok(mut irc_client) = Client::from_config(config.clone()).await {

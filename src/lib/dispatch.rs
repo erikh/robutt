@@ -195,20 +195,21 @@ mod targets {
             pages: Vec<&str>,
         ) -> Result<Vec<String>, apis::Error<games_api::GamesByGameNameError>> {
             let config = apis::configuration::Configuration::default();
-            let mut joined_categories = categories.join(",");
-            if joined_categories == "" {
-                joined_categories = String::from("youtube,overview");
+
+            let mut joined_categories = String::from("youtube,overview");
+            if categories.len() > 0 {
+                joined_categories = categories.join(",");
             }
 
-            if let Ok(api_key) = std::env::var("API_KEY") {
+            if let Ok(api_key) = std::env::var("GAMESDB_API_KEY") {
                 let res = games_api::games_by_game_name(
                     &config,
                     &api_key,
                     search.join(" ").as_str(),
                     Some(joined_categories.as_str()),
-                    Some(""),
-                    Some(""),
-                    Some(0),
+                    None,
+                    None,
+                    None,
                 )
                 .await?;
 

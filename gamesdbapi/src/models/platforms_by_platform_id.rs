@@ -21,20 +21,20 @@ pub struct PlatformsByPlatformId {
     pub remaining_monthly_allowance: i32,
     #[serde(rename = "extra_allowance")]
     pub extra_allowance: i32,
-    #[serde(rename = "allowance_refresh_timer", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "allowance_refresh_timer")]
     pub allowance_refresh_timer: Option<i32>,
     #[serde(rename = "data")]
     pub data: crate::models::PlatformsAllOfData,
 }
 
 impl PlatformsByPlatformId {
-    pub fn new(code: i32, status: String, remaining_monthly_allowance: i32, extra_allowance: i32, data: crate::models::PlatformsAllOfData) -> PlatformsByPlatformId {
+    pub fn new(code: i32, status: String, remaining_monthly_allowance: i32, extra_allowance: i32, allowance_refresh_timer: Option<i32>, data: crate::models::PlatformsAllOfData) -> PlatformsByPlatformId {
         PlatformsByPlatformId {
             code,
             status,
             remaining_monthly_allowance,
             extra_allowance,
-            allowance_refresh_timer: None,
+            allowance_refresh_timer,
             data,
         }
     }

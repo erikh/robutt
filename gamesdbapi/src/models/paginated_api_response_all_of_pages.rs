@@ -13,20 +13,20 @@
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PaginatedApiResponseAllOfPages {
-    #[serde(rename = "previous", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "previous")]
     pub previous: Option<String>,
     #[serde(rename = "current")]
     pub current: String,
-    #[serde(rename = "next", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "next")]
     pub next: Option<String>,
 }
 
 impl PaginatedApiResponseAllOfPages {
-    pub fn new(current: String) -> PaginatedApiResponseAllOfPages {
+    pub fn new(previous: Option<String>, current: String, next: Option<String>) -> PaginatedApiResponseAllOfPages {
         PaginatedApiResponseAllOfPages {
-            previous: None,
+            previous,
             current,
-            next: None,
+            next,
         }
     }
 }

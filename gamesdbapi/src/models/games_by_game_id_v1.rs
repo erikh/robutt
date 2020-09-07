@@ -21,27 +21,27 @@ pub struct GamesByGameIdV1 {
     pub remaining_monthly_allowance: i32,
     #[serde(rename = "extra_allowance")]
     pub extra_allowance: i32,
-    #[serde(rename = "allowance_refresh_timer", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "allowance_refresh_timer")]
     pub allowance_refresh_timer: Option<i32>,
     #[serde(rename = "pages")]
     pub pages: crate::models::PaginatedApiResponseAllOfPages,
     #[serde(rename = "data")]
     pub data: crate::models::GamesByGameIdAllOfData,
-    #[serde(rename = "include")]
-    pub include: crate::models::GamesByGameIdV1AllOfInclude,
+    #[serde(rename = "include", skip_serializing_if = "Option::is_none")]
+    pub include: Option<crate::models::GamesByGameIdV1AllOfInclude>,
 }
 
 impl GamesByGameIdV1 {
-    pub fn new(code: i32, status: String, remaining_monthly_allowance: i32, extra_allowance: i32, pages: crate::models::PaginatedApiResponseAllOfPages, data: crate::models::GamesByGameIdAllOfData, include: crate::models::GamesByGameIdV1AllOfInclude) -> GamesByGameIdV1 {
+    pub fn new(code: i32, status: String, remaining_monthly_allowance: i32, extra_allowance: i32, allowance_refresh_timer: Option<i32>, pages: crate::models::PaginatedApiResponseAllOfPages, data: crate::models::GamesByGameIdAllOfData) -> GamesByGameIdV1 {
         GamesByGameIdV1 {
             code,
             status,
             remaining_monthly_allowance,
             extra_allowance,
-            allowance_refresh_timer: None,
+            allowance_refresh_timer,
             pages,
             data,
-            include,
+            include: None,
         }
     }
 }

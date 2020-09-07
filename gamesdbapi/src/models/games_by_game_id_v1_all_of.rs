@@ -15,15 +15,15 @@
 pub struct GamesByGameIdV1AllOf {
     #[serde(rename = "data")]
     pub data: crate::models::GamesByGameIdAllOfData,
-    #[serde(rename = "include")]
-    pub include: crate::models::GamesByGameIdV1AllOfInclude,
+    #[serde(rename = "include", skip_serializing_if = "Option::is_none")]
+    pub include: Option<crate::models::GamesByGameIdV1AllOfInclude>,
 }
 
 impl GamesByGameIdV1AllOf {
-    pub fn new(data: crate::models::GamesByGameIdAllOfData, include: crate::models::GamesByGameIdV1AllOfInclude) -> GamesByGameIdV1AllOf {
+    pub fn new(data: crate::models::GamesByGameIdAllOfData) -> GamesByGameIdV1AllOf {
         GamesByGameIdV1AllOf {
             data,
-            include,
+            include: None,
         }
     }
 }

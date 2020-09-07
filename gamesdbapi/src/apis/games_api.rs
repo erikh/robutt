@@ -73,227 +73,227 @@ pub enum GamesUpdatesError {
 /// can request additional information can be requestes through `fields` and `include` params
 pub async fn games_by_game_id(configuration: &configuration::Configuration, apikey: &str, id: &str, fields: Option<&str>, include: Option<&str>, page: Option<i32>) -> Result<crate::models::GamesByGameId, Error<GamesByGameIdError>> {
 
-    let client = &configuration.client;
+    let local_var_client = &configuration.client;
 
-    let uri_str = format!("{}/v1/Games/ByGameID", configuration.base_path);
-    let mut req_builder = client.get(uri_str.as_str());
+    let local_var_uri_str = format!("{}/v1/Games/ByGameID", configuration.base_path);
+    let mut local_var_req_builder = local_var_client.get(local_var_uri_str.as_str());
 
-    req_builder = req_builder.query(&[("apikey", &apikey.to_string())]);
-    req_builder = req_builder.query(&[("id", &id.to_string())]);
-    if let Some(ref s) = fields {
-        req_builder = req_builder.query(&[("fields", &s.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("apikey", &apikey.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("id", &id.to_string())]);
+    if let Some(ref local_var_str) = fields {
+        local_var_req_builder = local_var_req_builder.query(&[("fields", &local_var_str.to_string())]);
     }
-    if let Some(ref s) = include {
-        req_builder = req_builder.query(&[("include", &s.to_string())]);
+    if let Some(ref local_var_str) = include {
+        local_var_req_builder = local_var_req_builder.query(&[("include", &local_var_str.to_string())]);
     }
-    if let Some(ref s) = page {
-        req_builder = req_builder.query(&[("page", &s.to_string())]);
+    if let Some(ref local_var_str) = page {
+        local_var_req_builder = local_var_req_builder.query(&[("page", &local_var_str.to_string())]);
     }
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    if let Some(ref local_var_user_agent) = configuration.user_agent {
+        local_var_req_builder = local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
     }
 
-    let req = req_builder.build()?;
-    let resp = client.execute(req).await?;
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
 
-    let status = resp.status();
-    let content = resp.text().await?;
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
 
-    if status.is_success() {
-        serde_json::from_str(&content).map_err(Error::from)
+    if local_var_status.is_success() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
-        let entity: Option<GamesByGameIdError> = serde_json::from_str(&content).ok();
-        let error = ResponseContent { status, content, entity };
-        Err(Error::ResponseError(error))
+        let local_var_entity: Option<GamesByGameIdError> = serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent { status: local_var_status, content: local_var_content, entity: local_var_entity };
+        Err(Error::ResponseError(local_var_error))
     }
 }
 
 /// can request additional information can be requestes through `fields` and `include` params
 pub async fn games_by_game_name(configuration: &configuration::Configuration, apikey: &str, name: &str, fields: Option<&str>, filter_platform: Option<&str>, include: Option<&str>, page: Option<i32>) -> Result<crate::models::GamesByGameId, Error<GamesByGameNameError>> {
 
-    let client = &configuration.client;
+    let local_var_client = &configuration.client;
 
-    let uri_str = format!("{}/v1.1/Games/ByGameName", configuration.base_path);
-    let mut req_builder = client.get(uri_str.as_str());
+    let local_var_uri_str = format!("{}/v1.1/Games/ByGameName", configuration.base_path);
+    let mut local_var_req_builder = local_var_client.get(local_var_uri_str.as_str());
 
-    req_builder = req_builder.query(&[("apikey", &apikey.to_string())]);
-    req_builder = req_builder.query(&[("name", &name.to_string())]);
-    if let Some(ref s) = fields {
-        req_builder = req_builder.query(&[("fields", &s.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("apikey", &apikey.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("name", &name.to_string())]);
+    if let Some(ref local_var_str) = fields {
+        local_var_req_builder = local_var_req_builder.query(&[("fields", &local_var_str.to_string())]);
     }
-    if let Some(ref s) = filter_platform {
-        req_builder = req_builder.query(&[("filter[platform]", &s.to_string())]);
+    if let Some(ref local_var_str) = filter_platform {
+        local_var_req_builder = local_var_req_builder.query(&[("filter[platform]", &local_var_str.to_string())]);
     }
-    if let Some(ref s) = include {
-        req_builder = req_builder.query(&[("include", &s.to_string())]);
+    if let Some(ref local_var_str) = include {
+        local_var_req_builder = local_var_req_builder.query(&[("include", &local_var_str.to_string())]);
     }
-    if let Some(ref s) = page {
-        req_builder = req_builder.query(&[("page", &s.to_string())]);
+    if let Some(ref local_var_str) = page {
+        local_var_req_builder = local_var_req_builder.query(&[("page", &local_var_str.to_string())]);
     }
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    if let Some(ref local_var_user_agent) = configuration.user_agent {
+        local_var_req_builder = local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
     }
 
-    let req = req_builder.build()?;
-    let resp = client.execute(req).await?;
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
 
-    let status = resp.status();
-    let content = resp.text().await?;
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
 
-    if status.is_success() {
-        serde_json::from_str(&content).map_err(Error::from)
+    if local_var_status.is_success() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
-        let entity: Option<GamesByGameNameError> = serde_json::from_str(&content).ok();
-        let error = ResponseContent { status, content, entity };
-        Err(Error::ResponseError(error))
+        let local_var_entity: Option<GamesByGameNameError> = serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent { status: local_var_status, content: local_var_content, entity: local_var_entity };
+        Err(Error::ResponseError(local_var_error))
     }
 }
 
 /// can request additional information can be requestes through `fields` and `include` params
 pub async fn games_by_game_name_v1(configuration: &configuration::Configuration, apikey: &str, name: &str, fields: Option<&str>, filter_platform: Option<&str>, include: Option<&str>, page: Option<i32>) -> Result<crate::models::GamesByGameIdV1, Error<GamesByGameNameV1Error>> {
 
-    let client = &configuration.client;
+    let local_var_client = &configuration.client;
 
-    let uri_str = format!("{}/v1/Games/ByGameName", configuration.base_path);
-    let mut req_builder = client.get(uri_str.as_str());
+    let local_var_uri_str = format!("{}/v1/Games/ByGameName", configuration.base_path);
+    let mut local_var_req_builder = local_var_client.get(local_var_uri_str.as_str());
 
-    req_builder = req_builder.query(&[("apikey", &apikey.to_string())]);
-    req_builder = req_builder.query(&[("name", &name.to_string())]);
-    if let Some(ref s) = fields {
-        req_builder = req_builder.query(&[("fields", &s.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("apikey", &apikey.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("name", &name.to_string())]);
+    if let Some(ref local_var_str) = fields {
+        local_var_req_builder = local_var_req_builder.query(&[("fields", &local_var_str.to_string())]);
     }
-    if let Some(ref s) = filter_platform {
-        req_builder = req_builder.query(&[("filter[platform]", &s.to_string())]);
+    if let Some(ref local_var_str) = filter_platform {
+        local_var_req_builder = local_var_req_builder.query(&[("filter[platform]", &local_var_str.to_string())]);
     }
-    if let Some(ref s) = include {
-        req_builder = req_builder.query(&[("include", &s.to_string())]);
+    if let Some(ref local_var_str) = include {
+        local_var_req_builder = local_var_req_builder.query(&[("include", &local_var_str.to_string())]);
     }
-    if let Some(ref s) = page {
-        req_builder = req_builder.query(&[("page", &s.to_string())]);
+    if let Some(ref local_var_str) = page {
+        local_var_req_builder = local_var_req_builder.query(&[("page", &local_var_str.to_string())]);
     }
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    if let Some(ref local_var_user_agent) = configuration.user_agent {
+        local_var_req_builder = local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
     }
 
-    let req = req_builder.build()?;
-    let resp = client.execute(req).await?;
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
 
-    let status = resp.status();
-    let content = resp.text().await?;
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
 
-    if status.is_success() {
-        serde_json::from_str(&content).map_err(Error::from)
+    if local_var_status.is_success() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
-        let entity: Option<GamesByGameNameV1Error> = serde_json::from_str(&content).ok();
-        let error = ResponseContent { status, content, entity };
-        Err(Error::ResponseError(error))
+        let local_var_entity: Option<GamesByGameNameV1Error> = serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent { status: local_var_status, content: local_var_content, entity: local_var_entity };
+        Err(Error::ResponseError(local_var_error))
     }
 }
 
 /// can request additional information can be requested through `fields` and `include` params
 pub async fn games_by_platform_id(configuration: &configuration::Configuration, apikey: &str, id: &str, fields: Option<&str>, include: Option<&str>, page: Option<i32>) -> Result<crate::models::GamesByGameId, Error<GamesByPlatformIdError>> {
 
-    let client = &configuration.client;
+    let local_var_client = &configuration.client;
 
-    let uri_str = format!("{}/v1/Games/ByPlatformID", configuration.base_path);
-    let mut req_builder = client.get(uri_str.as_str());
+    let local_var_uri_str = format!("{}/v1/Games/ByPlatformID", configuration.base_path);
+    let mut local_var_req_builder = local_var_client.get(local_var_uri_str.as_str());
 
-    req_builder = req_builder.query(&[("apikey", &apikey.to_string())]);
-    req_builder = req_builder.query(&[("id", &id.to_string())]);
-    if let Some(ref s) = fields {
-        req_builder = req_builder.query(&[("fields", &s.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("apikey", &apikey.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("id", &id.to_string())]);
+    if let Some(ref local_var_str) = fields {
+        local_var_req_builder = local_var_req_builder.query(&[("fields", &local_var_str.to_string())]);
     }
-    if let Some(ref s) = include {
-        req_builder = req_builder.query(&[("include", &s.to_string())]);
+    if let Some(ref local_var_str) = include {
+        local_var_req_builder = local_var_req_builder.query(&[("include", &local_var_str.to_string())]);
     }
-    if let Some(ref s) = page {
-        req_builder = req_builder.query(&[("page", &s.to_string())]);
+    if let Some(ref local_var_str) = page {
+        local_var_req_builder = local_var_req_builder.query(&[("page", &local_var_str.to_string())]);
     }
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    if let Some(ref local_var_user_agent) = configuration.user_agent {
+        local_var_req_builder = local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
     }
 
-    let req = req_builder.build()?;
-    let resp = client.execute(req).await?;
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
 
-    let status = resp.status();
-    let content = resp.text().await?;
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
 
-    if status.is_success() {
-        serde_json::from_str(&content).map_err(Error::from)
+    if local_var_status.is_success() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
-        let entity: Option<GamesByPlatformIdError> = serde_json::from_str(&content).ok();
-        let error = ResponseContent { status, content, entity };
-        Err(Error::ResponseError(error))
+        let local_var_entity: Option<GamesByPlatformIdError> = serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent { status: local_var_status, content: local_var_content, entity: local_var_entity };
+        Err(Error::ResponseError(local_var_error))
     }
 }
 
 /// results can be filtered with `filter[type]` param
 pub async fn games_images(configuration: &configuration::Configuration, apikey: &str, games_id: &str, filter_type: Option<&str>, page: Option<i32>) -> Result<crate::models::GamesImages, Error<GamesImagesError>> {
 
-    let client = &configuration.client;
+    let local_var_client = &configuration.client;
 
-    let uri_str = format!("{}/v1/Games/Images", configuration.base_path);
-    let mut req_builder = client.get(uri_str.as_str());
+    let local_var_uri_str = format!("{}/v1/Games/Images", configuration.base_path);
+    let mut local_var_req_builder = local_var_client.get(local_var_uri_str.as_str());
 
-    req_builder = req_builder.query(&[("apikey", &apikey.to_string())]);
-    req_builder = req_builder.query(&[("games_id", &games_id.to_string())]);
-    if let Some(ref s) = filter_type {
-        req_builder = req_builder.query(&[("filter[type]", &s.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("apikey", &apikey.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("games_id", &games_id.to_string())]);
+    if let Some(ref local_var_str) = filter_type {
+        local_var_req_builder = local_var_req_builder.query(&[("filter[type]", &local_var_str.to_string())]);
     }
-    if let Some(ref s) = page {
-        req_builder = req_builder.query(&[("page", &s.to_string())]);
+    if let Some(ref local_var_str) = page {
+        local_var_req_builder = local_var_req_builder.query(&[("page", &local_var_str.to_string())]);
     }
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    if let Some(ref local_var_user_agent) = configuration.user_agent {
+        local_var_req_builder = local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
     }
 
-    let req = req_builder.build()?;
-    let resp = client.execute(req).await?;
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
 
-    let status = resp.status();
-    let content = resp.text().await?;
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
 
-    if status.is_success() {
-        serde_json::from_str(&content).map_err(Error::from)
+    if local_var_status.is_success() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
-        let entity: Option<GamesImagesError> = serde_json::from_str(&content).ok();
-        let error = ResponseContent { status, content, entity };
-        Err(Error::ResponseError(error))
+        let local_var_entity: Option<GamesImagesError> = serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent { status: local_var_status, content: local_var_content, entity: local_var_entity };
+        Err(Error::ResponseError(local_var_error))
     }
 }
 
 pub async fn games_updates(configuration: &configuration::Configuration, apikey: &str, last_edit_id: i32, time: Option<i32>, page: Option<i32>) -> Result<crate::models::GamesUpdates, Error<GamesUpdatesError>> {
 
-    let client = &configuration.client;
+    let local_var_client = &configuration.client;
 
-    let uri_str = format!("{}/v1/Games/Updates", configuration.base_path);
-    let mut req_builder = client.get(uri_str.as_str());
+    let local_var_uri_str = format!("{}/v1/Games/Updates", configuration.base_path);
+    let mut local_var_req_builder = local_var_client.get(local_var_uri_str.as_str());
 
-    req_builder = req_builder.query(&[("apikey", &apikey.to_string())]);
-    req_builder = req_builder.query(&[("last_edit_id", &last_edit_id.to_string())]);
-    if let Some(ref s) = time {
-        req_builder = req_builder.query(&[("time", &s.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("apikey", &apikey.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("last_edit_id", &last_edit_id.to_string())]);
+    if let Some(ref local_var_str) = time {
+        local_var_req_builder = local_var_req_builder.query(&[("time", &local_var_str.to_string())]);
     }
-    if let Some(ref s) = page {
-        req_builder = req_builder.query(&[("page", &s.to_string())]);
+    if let Some(ref local_var_str) = page {
+        local_var_req_builder = local_var_req_builder.query(&[("page", &local_var_str.to_string())]);
     }
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    if let Some(ref local_var_user_agent) = configuration.user_agent {
+        local_var_req_builder = local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
     }
 
-    let req = req_builder.build()?;
-    let resp = client.execute(req).await?;
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
 
-    let status = resp.status();
-    let content = resp.text().await?;
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
 
-    if status.is_success() {
-        serde_json::from_str(&content).map_err(Error::from)
+    if local_var_status.is_success() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
-        let entity: Option<GamesUpdatesError> = serde_json::from_str(&content).ok();
-        let error = ResponseContent { status, content, entity };
-        Err(Error::ResponseError(error))
+        let local_var_entity: Option<GamesUpdatesError> = serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent { status: local_var_status, content: local_var_content, entity: local_var_entity };
+        Err(Error::ResponseError(local_var_error))
     }
 }
 

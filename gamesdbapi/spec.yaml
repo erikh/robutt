@@ -489,6 +489,7 @@ definitions:
       - status
       - remaining_monthly_allowance
       - extra_allowance
+      - allowance_refresh_timer
     properties:
       code:
         type: integer
@@ -503,13 +504,12 @@ definitions:
         minimum: 0
       allowance_refresh_timer:
         type: integer
-        nullable: true
+        x-nullable: true
     example:
       code: 200
       status: "Success"
       remaining_monthly_allowance: 257
       extra_allowance: 0
-      allowance_refresh_timer: null
   PaginatedApiResponse:
     allOf:
       - $ref: "#/definitions/BaseApiResponse"
@@ -520,20 +520,22 @@ definitions:
           pages:
             type: object
             required:
+              - previous
               - current
+              - next
             properties:
               previous:
                 type: string
-                nullable: true
+                x-nullable: true
               current:
                 type: string
               next:
                 type: string
-                nullable: true
+                x-nullable: true
             example:
-              previous: null
+              previous: ""
               current: "https://api.thegamesdb.net/Games/ByGameID?apikey=APIKEY&id=1%2C2%2C3%2C4&fields=players%2Cpublishers%2Cgenres%2Coverview%2Clast_updated%2Crating%2Cplatform%2Ccoop%2Cyoutube%2Cos%2Cprocessor%2Cram%2Chdd%2Cvideo%2Csound%2Calternates&include=boxart%2Cplatform&page=1"
-              next: null
+              next: ""
   GamesByGameID:
     allOf:
       - $ref: "#/definitions/PaginatedApiResponse"
@@ -589,7 +591,6 @@ definitions:
       - type: object
         required:
           - data
-          - include
         properties:
           data:
             type: object
@@ -848,61 +849,45 @@ definitions:
       players:
         type: integer
         minimum: 0
-        nullable: true
       overview:
         type: string
-        nullable: true
       last_updated:
         type: string
-        nullable: true
       rating:
         type: string
-        nullable: true
       coop:
         type: string
-        nullable: true
       youtube:
         type: string
-        nullable: true
       os:
         type: string
-        nullable: true
       processor:
         type: string
-        nullable: true
       ram:
         type: string
-        nullable: true
       hdd:
         type: string
-        nullable: true
       video:
         type: string
-        nullable: true
       sound:
         type: string
-        nullable: true
       developers:
         type: array
-        nullable: true
         items:
           type: integer
           minimum: 0
       genres:
         type: array
-        nullable: true
         items:
           type: integer
           minimum: 0
       publishers:
         type: array
-        nullable: true
         items:
           type: integer
           minimum: 0
       alternates:
         type: array
-        nullable: true
         items:
           type: string
     example:

@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **status** | **String** |  | 
 **remaining_monthly_allowance** | **i32** |  | 
 **extra_allowance** | **i32** |  | 
-**allowance_refresh_timer** | Option<**i32**> |  | [optional]
+**allowance_refresh_timer** | Option<**i32**> |  | 
 **pages** | [**crate::models::PaginatedApiResponseAllOfPages**](PaginatedApiResponse_allOf_pages.md) |  | 
 **data** | [**crate::models::GamesUpdatesAllOfData**](GamesUpdates_allOf_data.md) |  | 
 

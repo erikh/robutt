@@ -54,128 +54,128 @@ pub enum PlatformsImagesError {
 
 pub async fn platforms(configuration: &configuration::Configuration, apikey: &str, fields: Option<&str>) -> Result<crate::models::Platforms, Error<PlatformsError>> {
 
-    let client = &configuration.client;
+    let local_var_client = &configuration.client;
 
-    let uri_str = format!("{}/v1/Platforms", configuration.base_path);
-    let mut req_builder = client.get(uri_str.as_str());
+    let local_var_uri_str = format!("{}/v1/Platforms", configuration.base_path);
+    let mut local_var_req_builder = local_var_client.get(local_var_uri_str.as_str());
 
-    req_builder = req_builder.query(&[("apikey", &apikey.to_string())]);
-    if let Some(ref s) = fields {
-        req_builder = req_builder.query(&[("fields", &s.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("apikey", &apikey.to_string())]);
+    if let Some(ref local_var_str) = fields {
+        local_var_req_builder = local_var_req_builder.query(&[("fields", &local_var_str.to_string())]);
     }
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    if let Some(ref local_var_user_agent) = configuration.user_agent {
+        local_var_req_builder = local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
     }
 
-    let req = req_builder.build()?;
-    let resp = client.execute(req).await?;
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
 
-    let status = resp.status();
-    let content = resp.text().await?;
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
 
-    if status.is_success() {
-        serde_json::from_str(&content).map_err(Error::from)
+    if local_var_status.is_success() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
-        let entity: Option<PlatformsError> = serde_json::from_str(&content).ok();
-        let error = ResponseContent { status, content, entity };
-        Err(Error::ResponseError(error))
+        let local_var_entity: Option<PlatformsError> = serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent { status: local_var_status, content: local_var_content, entity: local_var_entity };
+        Err(Error::ResponseError(local_var_error))
     }
 }
 
 pub async fn platforms_by_platform_id(configuration: &configuration::Configuration, apikey: &str, id: i32, fields: Option<&str>) -> Result<crate::models::PlatformsByPlatformId, Error<PlatformsByPlatformIdError>> {
 
-    let client = &configuration.client;
+    let local_var_client = &configuration.client;
 
-    let uri_str = format!("{}/v1/Platforms/ByPlatformID", configuration.base_path);
-    let mut req_builder = client.get(uri_str.as_str());
+    let local_var_uri_str = format!("{}/v1/Platforms/ByPlatformID", configuration.base_path);
+    let mut local_var_req_builder = local_var_client.get(local_var_uri_str.as_str());
 
-    req_builder = req_builder.query(&[("apikey", &apikey.to_string())]);
-    req_builder = req_builder.query(&[("id", &id.to_string())]);
-    if let Some(ref s) = fields {
-        req_builder = req_builder.query(&[("fields", &s.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("apikey", &apikey.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("id", &id.to_string())]);
+    if let Some(ref local_var_str) = fields {
+        local_var_req_builder = local_var_req_builder.query(&[("fields", &local_var_str.to_string())]);
     }
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    if let Some(ref local_var_user_agent) = configuration.user_agent {
+        local_var_req_builder = local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
     }
 
-    let req = req_builder.build()?;
-    let resp = client.execute(req).await?;
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
 
-    let status = resp.status();
-    let content = resp.text().await?;
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
 
-    if status.is_success() {
-        serde_json::from_str(&content).map_err(Error::from)
+    if local_var_status.is_success() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
-        let entity: Option<PlatformsByPlatformIdError> = serde_json::from_str(&content).ok();
-        let error = ResponseContent { status, content, entity };
-        Err(Error::ResponseError(error))
+        let local_var_entity: Option<PlatformsByPlatformIdError> = serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent { status: local_var_status, content: local_var_content, entity: local_var_entity };
+        Err(Error::ResponseError(local_var_error))
     }
 }
 
 pub async fn platforms_by_platform_name(configuration: &configuration::Configuration, apikey: &str, name: &str, fields: Option<&str>) -> Result<crate::models::PlatformsByPlatformName, Error<PlatformsByPlatformNameError>> {
 
-    let client = &configuration.client;
+    let local_var_client = &configuration.client;
 
-    let uri_str = format!("{}/v1/Platforms/ByPlatformName", configuration.base_path);
-    let mut req_builder = client.get(uri_str.as_str());
+    let local_var_uri_str = format!("{}/v1/Platforms/ByPlatformName", configuration.base_path);
+    let mut local_var_req_builder = local_var_client.get(local_var_uri_str.as_str());
 
-    req_builder = req_builder.query(&[("apikey", &apikey.to_string())]);
-    req_builder = req_builder.query(&[("name", &name.to_string())]);
-    if let Some(ref s) = fields {
-        req_builder = req_builder.query(&[("fields", &s.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("apikey", &apikey.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("name", &name.to_string())]);
+    if let Some(ref local_var_str) = fields {
+        local_var_req_builder = local_var_req_builder.query(&[("fields", &local_var_str.to_string())]);
     }
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    if let Some(ref local_var_user_agent) = configuration.user_agent {
+        local_var_req_builder = local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
     }
 
-    let req = req_builder.build()?;
-    let resp = client.execute(req).await?;
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
 
-    let status = resp.status();
-    let content = resp.text().await?;
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
 
-    if status.is_success() {
-        serde_json::from_str(&content).map_err(Error::from)
+    if local_var_status.is_success() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
-        let entity: Option<PlatformsByPlatformNameError> = serde_json::from_str(&content).ok();
-        let error = ResponseContent { status, content, entity };
-        Err(Error::ResponseError(error))
+        let local_var_entity: Option<PlatformsByPlatformNameError> = serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent { status: local_var_status, content: local_var_content, entity: local_var_entity };
+        Err(Error::ResponseError(local_var_error))
     }
 }
 
 /// results can be filtered with `filter[type]` param
 pub async fn platforms_images(configuration: &configuration::Configuration, apikey: &str, platforms_id: &str, filter_type: Option<&str>, page: Option<i32>) -> Result<crate::models::PlatformsImages, Error<PlatformsImagesError>> {
 
-    let client = &configuration.client;
+    let local_var_client = &configuration.client;
 
-    let uri_str = format!("{}/v1/Platforms/Images", configuration.base_path);
-    let mut req_builder = client.get(uri_str.as_str());
+    let local_var_uri_str = format!("{}/v1/Platforms/Images", configuration.base_path);
+    let mut local_var_req_builder = local_var_client.get(local_var_uri_str.as_str());
 
-    req_builder = req_builder.query(&[("apikey", &apikey.to_string())]);
-    req_builder = req_builder.query(&[("platforms_id", &platforms_id.to_string())]);
-    if let Some(ref s) = filter_type {
-        req_builder = req_builder.query(&[("filter[type]", &s.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("apikey", &apikey.to_string())]);
+    local_var_req_builder = local_var_req_builder.query(&[("platforms_id", &platforms_id.to_string())]);
+    if let Some(ref local_var_str) = filter_type {
+        local_var_req_builder = local_var_req_builder.query(&[("filter[type]", &local_var_str.to_string())]);
     }
-    if let Some(ref s) = page {
-        req_builder = req_builder.query(&[("page", &s.to_string())]);
+    if let Some(ref local_var_str) = page {
+        local_var_req_builder = local_var_req_builder.query(&[("page", &local_var_str.to_string())]);
     }
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    if let Some(ref local_var_user_agent) = configuration.user_agent {
+        local_var_req_builder = local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
     }
 
-    let req = req_builder.build()?;
-    let resp = client.execute(req).await?;
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
 
-    let status = resp.status();
-    let content = resp.text().await?;
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
 
-    if status.is_success() {
-        serde_json::from_str(&content).map_err(Error::from)
+    if local_var_status.is_success() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
-        let entity: Option<PlatformsImagesError> = serde_json::from_str(&content).ok();
-        let error = ResponseContent { status, content, entity };
-        Err(Error::ResponseError(error))
+        let local_var_entity: Option<PlatformsImagesError> = serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent { status: local_var_status, content: local_var_content, entity: local_var_entity };
+        Err(Error::ResponseError(local_var_error))
     }
 }
 

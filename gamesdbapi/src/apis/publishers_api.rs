@@ -27,28 +27,28 @@ pub enum PublishersError {
 
 pub async fn publishers(configuration: &configuration::Configuration, apikey: &str) -> Result<crate::models::Publishers, Error<PublishersError>> {
 
-    let client = &configuration.client;
+    let local_var_client = &configuration.client;
 
-    let uri_str = format!("{}/v1/Publishers", configuration.base_path);
-    let mut req_builder = client.get(uri_str.as_str());
+    let local_var_uri_str = format!("{}/v1/Publishers", configuration.base_path);
+    let mut local_var_req_builder = local_var_client.get(local_var_uri_str.as_str());
 
-    req_builder = req_builder.query(&[("apikey", &apikey.to_string())]);
-    if let Some(ref user_agent) = configuration.user_agent {
-        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    local_var_req_builder = local_var_req_builder.query(&[("apikey", &apikey.to_string())]);
+    if let Some(ref local_var_user_agent) = configuration.user_agent {
+        local_var_req_builder = local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
     }
 
-    let req = req_builder.build()?;
-    let resp = client.execute(req).await?;
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
 
-    let status = resp.status();
-    let content = resp.text().await?;
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
 
-    if status.is_success() {
-        serde_json::from_str(&content).map_err(Error::from)
+    if local_var_status.is_success() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
-        let entity: Option<PublishersError> = serde_json::from_str(&content).ok();
-        let error = ResponseContent { status, content, entity };
-        Err(Error::ResponseError(error))
+        let local_var_entity: Option<PublishersError> = serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent { status: local_var_status, content: local_var_content, entity: local_var_entity };
+        Err(Error::ResponseError(local_var_error))
     }
 }
 

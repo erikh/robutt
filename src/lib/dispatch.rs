@@ -192,7 +192,7 @@ mod targets {
         async fn fetch(
             search: Vec<&str>,
             categories: Vec<&str>,
-            pages: Vec<&str>,
+            pages: Vec<usize>, // using usize here so we can do some polymorphism around this later.
         ) -> Result<Vec<String>, apis::Error<games_api::GamesByGameNameError>> {
             let config = apis::configuration::Configuration::default();
 
@@ -209,23 +209,20 @@ mod targets {
                     Some(joined_categories.as_str()),
                     None,
                     None,
-                    None,
+                    Some(1),
                 )
                 .await?;
 
                 let mut ret: Vec<String> = Vec::new();
-                let mut page_iter = pages.iter();
+                let mut pgs: Vec<usize> = (1 as usize..res.data.count as usize).collect();
+                if pages.len() > 0 {
+                    pgs = pages;
+                }
 
-                while let Some(item) = page_iter.next() {
+                for page in pgs {
                     let mut inner_ret: Vec<String> = Vec::new();
-
-                    let page = item.parse::<usize>().unwrap();
-
-                    if res.data.count <= page as i32 {
-                        continue;
-                    }
-
                     let obj = &res.data.games.index(page);
+
                     if let Some(title) = &obj.game_title {
                         inner_ret.push(format!("Title: {}", title))
                     }
@@ -253,10 +250,15 @@ mod targets {
                         inner_ret.push(format!("Overview: {}", overview));
                     }
 
-                    ret.push(inner_ret.join(" / "));
+                    if inner_ret.len() > 0 {
+                        ret.push(inner_ret.join(" / "));
+                        break;
+                    }
                 }
 
-                return Ok(ret);
+                if ret.len() > 0 {
+                    return Ok(ret);
+                }
             }
 
             Ok(vec![String::from("No information found")])
@@ -324,10 +326,15 @@ mod targets {
                 let pages = parse(pages_rx, "-", &dispatch.text);
                 println!("PAGES: {:?}", pages);
 
+                let int_pages = pages
+                    .iter()
+                    .map(|x| -> usize { x.parse::<usize>().unwrap_or_default() })
+                    .collect();
+
                 let search = parse(search_rx, "", &dispatch.text);
                 println!("SEARCH {:?}", search);
 
-                match fetch(search, categories, pages).await {
+                match fetch(search, categories, int_pages).await {
                     Ok(text) => {
                         if text.len() > 0 {
                             let mut iter = text.iter();

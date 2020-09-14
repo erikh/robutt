@@ -124,7 +124,7 @@ impl Dispatch {
             d.text = text;
             let mut tmp_s = s.clone();
             targets::loud(d, &mut tmp_s).await
-        } else if self.text != text {
+        } else if self.text.trim() != text {
             let mut parts = text.splitn(2, " ");
             let mut d = self.clone();
 

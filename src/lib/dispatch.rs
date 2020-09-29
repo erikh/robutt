@@ -70,6 +70,7 @@ async fn dispatcher(
     match s {
         "gamesdb" => targets::commands::gamesdb(dispatch, sender).await,
         "thoughts?" => targets::commands::thoughts(dispatch, sender).await,
+        "roll" => targets::commands::roll(dispatch, sender).await,
         "help" => targets::commands::help(dispatch, sender).await,
         _ => targets::loud(dispatch, sender).await,
     }
@@ -362,6 +363,65 @@ mod targets {
                     }
                 }
             }
+            Ok(())
+        }
+
+        pub async fn short_help(
+            dispatch: Dispatch,
+            sender: &mut mpsc::Sender<DispatchReply>,
+        ) -> DispatchResult {
+            sender
+                .send(DispatchReply {
+                    target: dispatch.target,
+                    text: String::from("Invalid query: try `help`"),
+                })
+                .await?;
+            Ok(())
+        }
+
+        pub fn convert_capture(captures: &regex::Captures, index: usize, default: u8) -> u8 {
+            match captures.get(index) {
+                Some(x) => x.as_str().parse::<u8>().unwrap_or(default),
+                None => default,
+            }
+        }
+
+        pub async fn roll(
+            dispatch: Dispatch,
+            sender: &mut mpsc::Sender<DispatchReply>,
+        ) -> DispatchResult {
+            if dispatch.text == "" {
+                return short_help(dispatch, sender).await;
+            }
+
+            let dice_rx =
+                regex::Regex::new(r"\s*(([1-9][0-9]*)d)?([1-9][0-9]*)(\+([1-9][0-9]*))?").unwrap();
+            let captures = match dice_rx.captures(&dispatch.text) {
+                Some(c) => c,
+                None => {
+                    return short_help(dispatch, sender).await;
+                }
+            };
+
+            let num_dice = convert_capture(&captures, 2, 1);
+            let die_size = convert_capture(&captures, 3, 10);
+            let offset = convert_capture(&captures, 5, 0);
+
+            let mut dice: Vec<u8> = Vec::new();
+
+            for _x in 0..num_dice {
+                let mut result: u8 = rand::random();
+                result = (result % die_size) + 1 + offset; // dice start at 1
+                dice.push(result);
+            }
+
+            sender
+                .send(DispatchReply {
+                    target: dispatch.target,
+                    text: format!("dice: {:?}", dice),
+                })
+                .await?;
+
             Ok(())
         }
 

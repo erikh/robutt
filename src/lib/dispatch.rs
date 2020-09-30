@@ -408,19 +408,25 @@ mod targets {
             let offset = convert_capture(&captures, 5, 0);
 
             let mut dice: Vec<u8> = Vec::new();
+            let mut sum: u128 = 0;
 
             for _x in 0..num_dice {
                 let mut result: u8 = rand::random();
                 result = (result % die_size) + 1 + offset; // dice start at 1
                 dice.push(result);
+                sum += result as u128;
             }
 
-            sender
-                .send(DispatchReply {
-                    target: dispatch.target,
-                    text: format!("dice: {:?}", dice),
-                })
-                .await?;
+            let outs = vec![format!("dice: {:?}", dice), format!("sum: {}", sum)];
+
+            for out in outs {
+                sender
+                    .send(DispatchReply {
+                        target: dispatch.target.clone(),
+                        text: out,
+                    })
+                    .await?;
+            }
 
             Ok(())
         }

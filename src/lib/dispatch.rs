@@ -1,12 +1,19 @@
 use tokio::sync::mpsc::{self, error::SendError};
 
 #[derive(Clone, Debug)]
+pub enum DispatchSource {
+    IRC,
+    Discord,
+}
+
+#[derive(Clone, Debug)]
 pub struct Dispatch {
     id: u64,
     nick: String,
     sender: String,
     target: String,
     text: String,
+    source: DispatchSource,
 }
 
 #[derive(Clone, Debug)]
@@ -92,29 +99,46 @@ impl DispatchReply {
 }
 
 impl Dispatch {
-    pub fn new(id: u64, nick: String, sender: String, target: String, text: String) -> Dispatch {
+    pub fn new(
+        id: u64,
+        nick: String,
+        sender: String,
+        target: String,
+        text: String,
+        source: DispatchSource,
+    ) -> Dispatch {
         Dispatch {
             id,
             nick,
             sender: sender.clone(),
             target,
             text,
+            source,
         }
     }
 
     pub async fn dispatch(&self) -> (DispatchResult, mpsc::Receiver<DispatchReply>) {
-        let prefix = format!("{}: ", &self.nick);
-        let prefix_discord = format!("<@{}>", self.id);
-        // kill me
-        let prefix_discord2 = format!("<@!{}>", self.id);
-        let text = if self.text.starts_with(prefix.as_str()) {
-            self.text.trim_start_matches(prefix.as_str())
-        } else if self.text.starts_with(prefix_discord.as_str()) {
-            self.text.trim_start_matches(prefix_discord.as_str())
-        } else if self.text.starts_with(prefix_discord2.as_str()) {
-            self.text.trim_start_matches(prefix_discord2.as_str())
-        } else {
-            &self.text
+        let text = match self.source {
+            DispatchSource::IRC => {
+                let prefix = format!("{}: ", &self.nick);
+                if self.text.starts_with(prefix.as_str()) {
+                    self.text.trim_start_matches(prefix.as_str())
+                } else {
+                    &self.text
+                }
+            }
+            DispatchSource::Discord => {
+                let prefix_discord = format!("<@{}>", self.id);
+                // kill me
+                let prefix_discord2 = format!("<@!{}>", self.id);
+                if self.text.starts_with(prefix_discord.as_str()) {
+                    self.text.trim_start_matches(prefix_discord.as_str())
+                } else if self.text.starts_with(prefix_discord2.as_str()) {
+                    self.text.trim_start_matches(prefix_discord2.as_str())
+                } else {
+                    &self.text
+                }
+            }
         }
         .trim()
         .to_string();

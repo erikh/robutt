@@ -47,6 +47,22 @@ impl From<std::io::Error> for Error {
     }
 }
 
+impl From<reqwest::Error> for Error {
+    fn from(t: reqwest::Error) -> Self {
+        Self {
+            message: format!("{}", t),
+        }
+    }
+}
+
+impl From<trust_dns_resolver::error::ResolveError> for Error {
+    fn from(t: trust_dns_resolver::error::ResolveError) -> Self {
+        Self {
+            message: format!("{}", t),
+        }
+    }
+}
+
 impl From<SendError<DispatchReply>> for Error {
     fn from(t: SendError<DispatchReply>) -> Self {
         Self {
@@ -86,6 +102,29 @@ async fn dispatcher(
 pub fn is_loud(text: &String) -> bool {
     let chars_regex = regex::Regex::new("[A-Z ]{5}").unwrap();
     text.to_uppercase().eq(text) && chars_regex.is_match(text) && text.len() >= 5
+}
+
+const URL_PATTERN: &str = "https?://[^ ]+";
+
+fn url_regex() -> regex::Regex {
+    regex::Regex::new(URL_PATTERN).unwrap()
+}
+
+pub fn is_url(text: &str) -> bool {
+    url_regex().is_match(text)
+}
+
+pub fn extract_urls(text: &str) -> Vec<url::Url> {
+    let mut v: Vec<url::Url> = Vec::new();
+
+    for m in url_regex().find_iter(text) {
+        match url::Url::parse(m.as_str()) {
+            Ok(p) => v.push(p),
+            Err(_) => {}
+        }
+    }
+
+    v
 }
 
 impl DispatchReply {
@@ -149,6 +188,17 @@ impl Dispatch {
             d.text = text;
             let mut tmp_s = s.clone();
             targets::loud(d, &mut tmp_s).await
+        } else if is_url(&text) {
+            match self.source {
+                DispatchSource::Discord => Ok(()),
+                DispatchSource::IRC => {
+                    let mut d = self.clone();
+                    let urls = text.clone();
+                    d.text = text;
+                    let mut tmp_s = s.clone();
+                    targets::unroll_urls(d, &mut tmp_s, extract_urls(&urls)).await
+                }
+            }
         } else if self.text.trim() != text {
             let mut parts = text.splitn(2, " ");
             let mut d = self.clone();
@@ -179,7 +229,65 @@ mod targets {
     use crate::lib::dispatch::is_loud;
     use crate::lib::dispatch::{Dispatch, DispatchReply, DispatchResult};
     use crate::lib::loudfile::LoudFile;
+    use std::iter::Iterator;
     use tokio::sync::mpsc;
+    use trust_dns_resolver::AsyncResolver;
+
+    const TITLE_PATTERN: &str = "<title>([^<]+)</title>";
+
+    pub async fn unroll_urls(
+        dispatch: Dispatch,
+        sender: &mut mpsc::Sender<DispatchReply>,
+        urls: Vec<url::Url>,
+    ) -> DispatchResult {
+        let resolver = AsyncResolver::tokio_from_system_conf().await?;
+        let title_regex = regex::Regex::new(TITLE_PATTERN).unwrap();
+
+        if urls.len() > 3 {
+            return Ok(());
+        }
+
+        for url in urls {
+            match url.host() {
+                Some(host) => match resolver.lookup_ip(host.to_string()).await {
+                    Ok(v) => {
+                        let mut restricted = false;
+
+                        for x in v {
+                            let str_ip = x.to_string();
+                            let restricted_ips = vec!["10.", "172.16.", "192.168.", "127."];
+                            if restricted_ips.iter().any(|y| str_ip.starts_with(y)) {
+                                restricted = true;
+                            }
+                        }
+
+                        if !restricted {
+                            let text = reqwest::get(url.clone()).await?.text().await?;
+                            let title = match title_regex.captures(&text) {
+                                Some(c) => match c.get(1) {
+                                    Some(c) => c.as_str(),
+                                    None => "",
+                                },
+                                None => "",
+                            };
+
+                            if title != "" {
+                                sender
+                                    .send(DispatchReply {
+                                        target: dispatch.target.to_string(),
+                                        text: title.trim().to_string(),
+                                    })
+                                    .await?;
+                            }
+                        }
+                    }
+                    Err(_) => {}
+                },
+                None => {}
+            }
+        }
+        Ok(())
+    }
 
     pub async fn loud(
         dispatch: Dispatch,

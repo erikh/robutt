@@ -5,7 +5,7 @@ use discord::Discord;
 use futures::*;
 use irc::client::prelude::*;
 use lib::config::load_config;
-use lib::dispatch::{Dispatch, DispatchResult};
+use lib::dispatch::{Dispatch, DispatchResult, DispatchSource};
 use tokio::runtime::Builder;
 use tokio::task;
 
@@ -50,6 +50,7 @@ pub async fn discord_loop(discord_token: String) -> DispatchResult {
                             message.author.name,
                             message.channel_id.to_string(),
                             message.content.to_string(),
+                            DispatchSource::Discord,
                         );
 
                         let (dispatch, mut r) = d.dispatch().await;
@@ -99,6 +100,7 @@ pub async fn irc_loop(config: Config) -> DispatchResult {
                                         prefix.to_string(),
                                         message.response_target().unwrap().to_string(),
                                         text.to_string(),
+                                        DispatchSource::IRC,
                                     );
 
                                     let (dispatch, mut r) = d.dispatch().await;

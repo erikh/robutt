@@ -242,6 +242,7 @@ mod targets {
     ) -> DispatchResult {
         let resolver = AsyncResolver::tokio_from_system_conf().await?;
         let title_regex = regex::Regex::new(TITLE_PATTERN).unwrap();
+        let restricted_ips = vec!["10.", "172.16.", "192.168.", "127."];
 
         if urls.len() > 3 {
             return Ok(());
@@ -255,7 +256,6 @@ mod targets {
 
                         for x in v {
                             let str_ip = x.to_string();
-                            let restricted_ips = vec!["10.", "172.16.", "192.168.", "127."];
                             if restricted_ips.iter().any(|y| str_ip.starts_with(y)) {
                                 restricted = true;
                             }
@@ -269,13 +269,14 @@ mod targets {
                                     None => "",
                                 },
                                 None => "",
-                            };
+                            }
+                            .trim();
 
                             if title != "" {
                                 sender
                                     .send(DispatchReply {
                                         target: dispatch.target.to_string(),
-                                        text: title.trim().to_string(),
+                                        text: title.to_string(),
                                     })
                                     .await?;
                             }

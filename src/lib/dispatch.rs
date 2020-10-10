@@ -276,7 +276,7 @@ mod targets {
                                 sender
                                     .send(DispatchReply {
                                         target: dispatch.target.to_string(),
-                                        text: title.to_string(),
+                                        text: format!("[{}]: {}", url, title),
                                     })
                                     .await?;
                             }

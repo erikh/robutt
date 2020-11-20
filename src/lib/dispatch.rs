@@ -191,13 +191,13 @@ impl Dispatch {
         } else if is_url(&text) {
             match self.source {
                 DispatchSource::Discord => Ok(()),
-                DispatchSource::IRC => {
-                    let mut d = self.clone();
-                    let urls = text.clone();
-                    d.text = text;
-                    let mut tmp_s = s.clone();
-                    targets::unroll_urls(d, &mut tmp_s, extract_urls(&urls)).await
-                }
+                DispatchSource::IRC => Ok(()), //{
+                                               // let mut d = self.clone();
+                                               // let urls = text.clone();
+                                               // d.text = text;
+                                               // let mut tmp_s = s.clone();
+                                               // targets::unroll_urls(d, &mut tmp_s, extract_urls(&urls)).await
+                                               //}
             }
         } else if self.text.trim() != text {
             let mut parts = text.splitn(2, " ");

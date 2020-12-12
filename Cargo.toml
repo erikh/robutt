@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 irc = { version = "^0.14", features = [ "yaml", "json", "toml" ] }
 rand = ">=0"
-openapi = { path = './gamesdbapi' }
 futures = "^0.3"
 futures-util = '>=0'
 tokio = { version = '>=0', features = [ 'rt-core', 'rt-threaded', 'sync' ] }

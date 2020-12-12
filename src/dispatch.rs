@@ -31,7 +31,6 @@ async fn dispatcher(
     sender: &mut mpsc::Sender<DispatchReply>,
 ) -> DispatchResult {
     match s {
-        "gamesdb" => targets::commands::gamesdb(dispatch, sender).await,
         "thoughts?" => targets::commands::thoughts(dispatch, sender).await,
         "roll" => targets::commands::roll(dispatch, sender).await,
         "help" => targets::commands::help(dispatch, sender).await,
@@ -160,98 +159,17 @@ mod targets {
 
     pub mod commands {
         use crate::dispatch::{Dispatch, DispatchReply, DispatchResult};
-        use openapi::apis::{self, games_api};
         use rand::prelude::*;
         use std::fs::File;
         use std::io::prelude::*;
         use std::io::BufReader;
-        use std::ops::Index;
         use tokio::sync::mpsc;
-
-        async fn fetch(
-            search: Vec<&str>,
-            categories: Vec<&str>,
-            pages: Vec<usize>, // using usize here so we can do some polymorphism around this later.
-        ) -> Result<Vec<String>, apis::Error<games_api::GamesByGameNameError>> {
-            let config = apis::configuration::Configuration::default();
-
-            let mut joined_categories = String::from("youtube,overview");
-            if categories.len() > 0 {
-                joined_categories = categories.join(",");
-            }
-
-            if let Ok(api_key) = std::env::var("GAMESDB_API_KEY") {
-                let res = games_api::games_by_game_name(
-                    &config,
-                    &api_key,
-                    search.join(" ").as_str(),
-                    Some(joined_categories.as_str()),
-                    None,
-                    None,
-                    Some(1),
-                )
-                .await?;
-
-                let mut ret: Vec<String> = Vec::new();
-                let mut pgs: Vec<usize> = (1 as usize..res.data.count as usize).collect();
-                if pages.len() > 0 {
-                    pgs = pages;
-                }
-
-                for page in pgs {
-                    let mut inner_ret: Vec<String> = Vec::new();
-                    let obj = &res.data.games.index(page);
-
-                    if let Some(title) = &obj.game_title {
-                        inner_ret.push(format!("Title: {}", title))
-                    }
-
-                    if let Some(id) = &obj.id {
-                        inner_ret.push(format!("URL: https://thegamesdb.net/game.php?id={}", id))
-                    }
-
-                    if let Some(youtube_url) = &obj.youtube {
-                        if youtube_url != "" {
-                            if youtube_url.starts_with("https://youtube.com")
-                                || youtube_url.starts_with("https://youtu.be")
-                            {
-                                inner_ret.push(format!("Youtube: {}", youtube_url));
-                            } else {
-                                inner_ret.push(format!(
-                                    "Youtube: https://youtube.com/watch?v={}",
-                                    youtube_url
-                                ));
-                            }
-                        }
-                    }
-
-                    if let Some(overview) = &obj.overview {
-                        inner_ret.push(format!("Overview: {}", overview));
-                    }
-
-                    if inner_ret.len() > 0 {
-                        ret.push(inner_ret.join(" / "));
-                        break;
-                    }
-                }
-
-                if ret.len() > 0 {
-                    return Ok(ret);
-                }
-            }
-
-            Ok(vec![String::from("No information found")])
-        }
 
         pub async fn help(
             dispatch: Dispatch,
             send: &mut mpsc::Sender<DispatchReply>,
         ) -> DispatchResult {
-            let help_vec = vec![
-                "Try asking robutt what she thinks.",
-                "Try 'gamesdb <title>. Use a +category to fetch a specific category of data that we recognize. Use -# to fetch a specific index of the entries.'",
-                "Example: mega man +youtube -1 -2 -3 # first three items, youtube link",
-            ];
+            let help_vec = vec!["BE LOUD!", "Try asking robutt what she thinks."];
 
             let mut help = help_vec.iter();
             let target = dispatch.target;
@@ -265,82 +183,6 @@ mod targets {
                 .await?;
             }
 
-            Ok(())
-        }
-
-        fn parse<'a>(rx: regex::Regex, lead: &str, text: &'a str) -> Vec<&'a str> {
-            let caps = rx.captures_iter(text);
-            return caps
-                .map(|item| -> Vec<&str> {
-                    item.iter()
-                        .skip(1) // first match is always a dupe
-                        .map(|i| i.unwrap().clone().as_str().trim_start_matches(lead))
-                        .collect()
-                })
-                .flatten()
-                .collect();
-        }
-
-        pub async fn gamesdb(
-            dispatch: Dispatch,
-            sender: &mut mpsc::Sender<DispatchReply>,
-        ) -> DispatchResult {
-            if dispatch.text == "" {
-                sender
-                    .send(DispatchReply {
-                        target: dispatch.target,
-                        text: String::from("Invalid query: try `help`"),
-                    })
-                    .await?;
-            } else {
-                // these are incredibly brittle.
-                let categories_rx =
-                    regex::Regex::new("(?:^|[^\\w]*)(\\+[a-z]+)(?:[^\\w]|$)").unwrap();
-                let pages_rx = regex::Regex::new("(?:^|[^\\w]*)(-[0-9]+)(?:[^\\w]|$)").unwrap();
-                let search_rx = regex::Regex::new("(?:^|\\s)([^-+][^\\s]+)").unwrap();
-
-                let categories = parse(categories_rx, "+", &dispatch.text);
-                println!("CATEGORIES: {:?}", categories);
-
-                let pages = parse(pages_rx, "-", &dispatch.text);
-                println!("PAGES: {:?}", pages);
-
-                let int_pages = pages
-                    .iter()
-                    .map(|x| -> usize { x.parse::<usize>().unwrap_or_default() })
-                    .collect();
-
-                let search = parse(search_rx, "", &dispatch.text);
-                println!("SEARCH {:?}", search);
-
-                match fetch(search, categories, int_pages).await {
-                    Ok(text) => {
-                        if text.len() > 0 {
-                            let mut iter = text.iter();
-                            while let Some(t) = iter.next() {
-                                if t.trim().len() != 0 {
-                                    sender
-                                        .send(DispatchReply {
-                                            target: dispatch.target.to_string(),
-                                            text: t.to_string(),
-                                        })
-                                        .await
-                                        .unwrap();
-                                }
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        println!("Error: {:?}", e);
-                        sender
-                            .send(DispatchReply {
-                                target: dispatch.target,
-                                text: String::from("Error fetching data"),
-                            })
-                            .await?;
-                    }
-                }
-            }
             Ok(())
         }
 

@@ -5,17 +5,17 @@ use std::io::prelude::*;
 use std::io::{self, BufReader, Lines, Write};
 use std::ops::Index;
 
-pub struct LoudFile<'a> {
-    filename: &'a str,
+pub struct LoudFile {
+    filename: String,
 }
 
-impl LoudFile<'_> {
-    pub fn new(filename: &str) -> LoudFile {
-        return LoudFile::<'_> { filename };
+impl LoudFile {
+    pub fn new(filename: String) -> LoudFile {
+        return LoudFile { filename };
     }
 
     fn get_file(&self) -> io::Result<Lines<BufReader<File>>> {
-        let file = File::open(self.filename)?;
+        let file = File::open(self.filename.clone())?;
         let reader = BufReader::new(file);
         Ok(reader.lines())
     }
@@ -49,21 +49,21 @@ impl LoudFile<'_> {
         }
     }
 
-    pub fn append(&self, line: &str) -> io::Result<()> {
+    pub fn append(&self, line: String) -> io::Result<()> {
         let bucket: Option<Vec<String>> = match self.bucket() {
             Ok(bucket) => Some(bucket),
             Err(_) => None,
         };
 
         if let Some(b) = bucket {
-            if b.contains(&line.to_string()) {
+            if b.contains(&line) {
                 return Ok(());
             }
         }
 
-        let mut file = match OpenOptions::new().append(true).open(self.filename) {
+        let mut file = match OpenOptions::new().append(true).open(self.filename.clone()) {
             Ok(f) => f,
-            Err(_) => File::create(self.filename)?,
+            Err(_) => File::create(self.filename.clone())?,
         };
         file.write_fmt(format_args!("{}\n", line))?;
         return Ok(());

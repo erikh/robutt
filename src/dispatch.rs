@@ -227,9 +227,9 @@ impl Dispatch {
 }
 
 mod targets {
-    use crate::lib::dispatch::is_loud;
-    use crate::lib::dispatch::{Dispatch, DispatchReply, DispatchResult};
-    use crate::lib::loudfile::LoudFile;
+    use crate::dispatch::is_loud;
+    use crate::dispatch::{Dispatch, DispatchReply, DispatchResult};
+    use crate::loudfile::LoudFile;
     use std::iter::Iterator;
     use tokio::sync::mpsc;
     use trust_dns_resolver::AsyncResolver;
@@ -295,11 +295,11 @@ mod targets {
         dispatch: Dispatch,
         sender: &mut mpsc::Sender<DispatchReply>,
     ) -> DispatchResult {
-        let loudfile = LoudFile::new("loudfile.txt");
+        let loudfile = LoudFile::new(String::from("loudfile.txt"));
 
         if is_loud(&dispatch.text) && !dispatch.text.trim().is_empty() {
             println!("LOUD RECORDED: <{}> {}", dispatch.target, dispatch.text);
-            loudfile.append(&dispatch.text).unwrap();
+            loudfile.append(dispatch.text).unwrap();
         }
 
         if let Some(line) = loudfile.get_line() {
@@ -315,7 +315,7 @@ mod targets {
     }
 
     pub mod commands {
-        use crate::lib::dispatch::{Dispatch, DispatchReply, DispatchResult};
+        use crate::dispatch::{Dispatch, DispatchReply, DispatchResult};
         use openapi::apis::{self, games_api};
         use rand::prelude::*;
         use std::fs::File;

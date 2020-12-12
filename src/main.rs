@@ -1,12 +1,13 @@
 mod config;
-mod lib;
+mod dispatch;
+mod loudfile;
 
 use anyhow::{anyhow, Result};
 use discord::model::Event::MessageCreate;
 use discord::Discord;
+use dispatch::{Dispatch, DispatchResult, DispatchSource};
 use futures::*;
 use irc::client::prelude::*;
-use lib::dispatch::{Dispatch, DispatchResult, DispatchSource};
 
 fn load_config() -> Result<config::Config> {
     let args: Vec<String> = std::env::args().collect();

@@ -55,7 +55,7 @@ pub async fn discord_loop(discord_token: String) -> DispatchResult {
                             DispatchSource::Discord,
                         );
 
-                        let mut r = d.dispatch().await;
+                        let mut r = d.dispatch().await?;
 
                         while let Some(reply) = r.recv().await {
                             discord
@@ -99,7 +99,7 @@ pub async fn irc_loop(config: config::Config) -> DispatchResult {
                                 DispatchSource::IRC,
                             );
 
-                            let mut r = d.dispatch().await;
+                            let mut r = d.dispatch().await?;
 
                             while let Some(reply) = r.recv().await {
                                 irc_client.send_privmsg(reply.get_target(), reply.get_text())?;

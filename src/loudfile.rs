@@ -25,11 +25,10 @@ impl LoudFile {
         let mut hs = HashSet::new();
         let mut lines = self.get_file()?;
 
-        while let Some(line) = lines.next() {
-            let b = Box::new(line.unwrap());
-            if !hs.contains(b.as_ref()) {
-                hs.insert(b.to_string());
-                vec.push(b.to_string());
+        while let Some(Ok(line)) = lines.next() {
+            if !hs.contains(&line.clone()) {
+                hs.insert(line.clone());
+                vec.push(line.clone());
             }
         }
 
@@ -42,7 +41,7 @@ impl LoudFile {
                 let vec: Vec<String> = bucket;
                 Some(
                     vec.index(rand::thread_rng().gen::<usize>() % vec.len())
-                        .to_string(),
+                        .to_owned(),
                 )
             }
             Err(_) => None,

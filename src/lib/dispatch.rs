@@ -1,3 +1,4 @@
+use anyhow::Result;
 use tokio::sync::mpsc::{self, error::SendError};
 
 #[derive(Clone, Debug)]
@@ -83,7 +84,7 @@ impl std::error::Error for Error {
     }
 }
 
-pub type DispatchResult = Result<(), Error>;
+pub type DispatchResult = Result<()>;
 
 async fn dispatcher(
     s: &str,
@@ -156,7 +157,7 @@ impl Dispatch {
         }
     }
 
-    pub async fn dispatch(&self) -> (DispatchResult, mpsc::Receiver<DispatchReply>) {
+    pub async fn dispatch(&self) -> mpsc::Receiver<DispatchReply> {
         let text = match self.source {
             DispatchSource::IRC => {
                 let prefix = format!("{}: ", &self.nick);
@@ -221,7 +222,7 @@ impl Dispatch {
         };
 
         drop(s);
-        return (res, r);
+        return r;
     }
 }
 

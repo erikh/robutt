@@ -1,36 +1,37 @@
+mod config;
 mod lib;
 
+use anyhow::{anyhow, Result};
 use discord::model::Event::MessageCreate;
 use discord::Discord;
 use futures::*;
 use irc::client::prelude::*;
-use lib::config::load_config;
 use lib::dispatch::{Dispatch, DispatchResult, DispatchSource};
-use tokio::runtime::Builder;
-use tokio::task;
 
-pub fn main() -> DispatchResult {
-    let config = load_config();
-    let mut r = Builder::new().threaded_scheduler().enable_all().build()?;
+fn load_config() -> Result<config::Config> {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() >= 2 {
+        config::Config::new(args.get(1).unwrap().to_owned())
+    } else {
+        Ok(config::Config::default())
+    }
+}
+
+#[tokio::main]
+pub async fn main() -> DispatchResult {
+    let config = load_config()?;
 
     if let Ok(discord_token) = std::env::var("DISCORD_TOKEN") {
-        r.spawn(irc_loop(config));
-        r.block_on(discord_loop(discord_token))?;
+        tokio::try_join!(irc_loop(config), discord_loop(discord_token))?;
     } else {
-        r.block_on(irc_loop(config)).unwrap();
+        tokio::try_join!(irc_loop(config))?;
     }
 
     Ok(())
 }
 
-pub fn err_exit(e: Box<dyn std::error::Error>) {
-    println!("{}", e);
-    std::process::exit(1);
-}
-
 pub async fn discord_loop(discord_token: String) -> DispatchResult {
     println!("Entering discord loop");
-    task::yield_now().await;
     if let Ok(discord) = Discord::from_bot_token(&discord_token) {
         if let Ok((mut discord_client, ready)) = discord.connect() {
             let state = discord::State::new(ready);
@@ -53,11 +54,7 @@ pub async fn discord_loop(discord_token: String) -> DispatchResult {
                             DispatchSource::Discord,
                         );
 
-                        let (dispatch, mut r) = d.dispatch().await;
-                        match dispatch {
-                            Ok(_) => {}
-                            Err(e) => println!("DISCORD ERROR: {:?}", e),
-                        }
+                        let mut r = d.dispatch().await;
 
                         while let Some(reply) = r.recv().await {
                             discord
@@ -72,61 +69,46 @@ pub async fn discord_loop(discord_token: String) -> DispatchResult {
     Ok(())
 }
 
-pub async fn irc_loop(config: Config) -> DispatchResult {
+pub async fn irc_loop(config: config::Config) -> DispatchResult {
     println!("Entering irc loop");
-    if let Ok(my_nickname) = config.nickname() {
-        if let Ok(mut irc_client) = Client::from_config(config.clone()).await {
-            match irc_client.identify() {
-                Ok(_) => {}
-                Err(_) => {
-                    println!("Couldn't login");
-                    std::process::exit(1);
-                }
-            }
+    let my_nickname = config.config.nickname()?;
+    let mut irc_client = Client::from_config(config.config.clone()).await?;
 
-            if let Ok(mut stream) = irc_client.stream() {
-                loop {
-                    match stream.next().await {
-                        Some(Ok(message)) => match message.clone().command {
-                            Command::PRIVMSG(prefix, text) => {
-                                println!("<{}> {}", prefix, text.to_string());
-                                if text.len() > 0 && text.as_bytes()[0] == 0x01 {
-                                    continue;
-                                }
-                                if let Some(prefix) = message.source_nickname() {
-                                    let d = Dispatch::new(
-                                        0,
-                                        my_nickname.to_string(),
-                                        prefix.to_string(),
-                                        message.response_target().unwrap().to_string(),
-                                        text.to_string(),
-                                        DispatchSource::IRC,
-                                    );
+    irc_client.identify()?;
+    let mut stream = irc_client.stream()?;
 
-                                    let (dispatch, mut r) = d.dispatch().await;
-                                    match dispatch {
-                                        Ok(_) => {}
-                                        Err(e) => println!("IRC ERROR: {:?}", e),
-                                    }
-
-                                    while let Some(reply) = r.recv().await {
-                                        irc_client
-                                            .send_privmsg(reply.get_target(), reply.get_text())
-                                            .unwrap();
-                                    }
-                                }
-                            }
-                            _ => print!("{}", message),
-                        },
-                        Some(Err(e)) => {
-                            println!("Error: {}", e);
-                            std::process::exit(1);
+    loop {
+        if let Some(m) = stream.next().await {
+            match m {
+                Ok(message) => match message.clone().command {
+                    Command::PRIVMSG(prefix, text) => {
+                        println!("<{}> {}", prefix, text.to_string());
+                        if text.len() > 0 && text.as_bytes()[0] == 0x01 {
+                            // CTCP, we just don't give a f
+                            continue;
                         }
-                        None => {}
+
+                        if let Some(prefix) = message.source_nickname() {
+                            let d = Dispatch::new(
+                                0,
+                                my_nickname.to_string(),
+                                prefix.to_string(),
+                                message.response_target().unwrap().to_string(),
+                                text.to_string(),
+                                DispatchSource::IRC,
+                            );
+
+                            let mut r = d.dispatch().await;
+
+                            while let Some(reply) = r.recv().await {
+                                irc_client.send_privmsg(reply.get_target(), reply.get_text())?;
+                            }
+                        }
                     }
-                }
+                    _ => print!("{}", message),
+                },
+                Err(e) => return Err(anyhow!(e)),
             }
         }
     }
-    Ok(())
 }

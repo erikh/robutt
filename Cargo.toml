@@ -18,3 +18,4 @@ discord = { git = "https://github.com/SpaceManiac/discord-rs", branch = "master"
 reqwest = { version = "^0.10", default-features = false, features = ["json", "default-tls"] }
 url = ">=0"
 trust-dns-resolver = ">=0"
+anyhow = "1.0"

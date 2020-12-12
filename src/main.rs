@@ -2,11 +2,11 @@ mod config;
 mod dispatch;
 mod loudfile;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use discord::model::Event::MessageCreate;
 use discord::Discord;
 use dispatch::{Dispatch, DispatchResult, DispatchSource};
-use futures::*;
+use futures::prelude::*;
 use irc::client::prelude::*;
 
 fn load_config() -> Result<config::Config> {
@@ -19,14 +19,14 @@ fn load_config() -> Result<config::Config> {
 }
 
 #[tokio::main]
-pub async fn main() -> DispatchResult {
+async fn main() -> DispatchResult {
     let config = load_config()?;
 
     if let Ok(discord_token) = std::env::var("DISCORD_TOKEN") {
-        tokio::try_join!(irc_loop(config), discord_loop(discord_token))?;
-    } else {
-        tokio::try_join!(irc_loop(config))?;
+        tokio::spawn(discord_loop(discord_token));
     }
+
+    tokio::join!(irc_loop(config)).0?;
 
     Ok(())
 }
@@ -79,37 +79,33 @@ pub async fn irc_loop(config: config::Config) -> DispatchResult {
     let mut stream = irc_client.stream()?;
 
     loop {
-        if let Some(m) = stream.next().await {
-            match m {
-                Ok(message) => match message.clone().command {
-                    Command::PRIVMSG(prefix, text) => {
-                        println!("<{}> {}", prefix, text.to_string());
-                        if text.len() > 0 && text.as_bytes()[0] == 0x01 {
-                            // CTCP, we just don't give a f
-                            continue;
-                        }
+        let message = stream.select_next_some().await?;
+        match message.clone().command {
+            Command::PRIVMSG(prefix, text) => {
+                println!("<{}> {}", prefix, text.to_string());
+                if text.len() > 0 && text.as_bytes()[0] == 0x01 {
+                    // CTCP, we just don't give a f
+                    continue;
+                }
 
-                        if let Some(prefix) = message.source_nickname() {
-                            let d = Dispatch::new(
-                                0,
-                                my_nickname.to_string(),
-                                prefix.to_string(),
-                                message.response_target().unwrap().to_string(),
-                                text.to_string(),
-                                DispatchSource::IRC,
-                            );
+                if let Some(prefix) = message.source_nickname() {
+                    let d = Dispatch::new(
+                        0,
+                        my_nickname.to_string(),
+                        prefix.to_string(),
+                        message.response_target().unwrap().to_string(),
+                        text.to_string(),
+                        DispatchSource::IRC,
+                    );
 
-                            let mut r = d.dispatch().await?;
+                    let mut r = d.dispatch().await?;
 
-                            while let Some(reply) = r.recv().await {
-                                irc_client.send_privmsg(reply.get_target(), reply.get_text())?;
-                            }
-                        }
+                    while let Some(reply) = r.recv().await {
+                        irc_client.send_privmsg(reply.get_target(), reply.get_text())?;
                     }
-                    _ => print!("{}", message),
-                },
-                Err(e) => return Err(anyhow!(e)),
+                }
             }
-        }
+            _ => print!("{}", message),
+        };
     }
 }

@@ -7,14 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-irc = { version = "^0.14", features = [ "yaml", "json", "toml" ] }
+irc = { version = ">=0", features = [ "yaml", "json", "toml" ] }
 rand = ">=0"
-futures = "^0.3"
+futures = ">=0"
 futures-util = '>=0'
-tokio = { version = '>=0', features = [ 'rt-core', 'rt-threaded', 'sync' ] }
+tokio = { version = '0.2', features = [ 'full' ] }
 regex = '>=0'
 discord = { git = "https://github.com/SpaceManiac/discord-rs", branch = "master", features = [ ] }
-reqwest = { version = "^0.10", default-features = false, features = ["json", "default-tls"] }
-url = ">=0"
-trust-dns-resolver = ">=0"
 anyhow = "1.0"

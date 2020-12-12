@@ -23,67 +23,6 @@ pub struct DispatchReply {
     text: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct Error {
-    message: String,
-}
-
-impl Error {
-    pub fn new(message: String) -> Self {
-        Self { message }
-    }
-
-    pub fn new_from_error(e: &dyn std::error::Error) -> Self {
-        Self {
-            message: format!("{}", e),
-        }
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(t: std::io::Error) -> Self {
-        Self {
-            message: format!("{}", t),
-        }
-    }
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(t: reqwest::Error) -> Self {
-        Self {
-            message: format!("{}", t),
-        }
-    }
-}
-
-impl From<trust_dns_resolver::error::ResolveError> for Error {
-    fn from(t: trust_dns_resolver::error::ResolveError) -> Self {
-        Self {
-            message: format!("{}", t),
-        }
-    }
-}
-
-impl From<SendError<DispatchReply>> for Error {
-    fn from(t: SendError<DispatchReply>) -> Self {
-        Self {
-            message: format!("{}", t),
-        }
-    }
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(self)
-    }
-}
-
 pub type DispatchResult = Result<()>;
 
 async fn dispatcher(

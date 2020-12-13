@@ -165,7 +165,12 @@ mod targets {
             dispatch: &mut Dispatch,
             send: &mut mpsc::Sender<DispatchReply>,
         ) -> DispatchResult {
-            let help_vec = vec!["BE LOUD!", "Try asking robutt what she thinks."];
+            let help_vec = vec![
+                "The bot only responds to being addressed directly, e.g., `robutt: roll 1d4`",
+                "otherwise, BE LOUD!",
+                "Try asking robutt what she thinks.",
+                "`roll 2d6` for hot die on die action",
+            ];
 
             let mut help = help_vec.iter();
             let target = dispatch.target.clone();

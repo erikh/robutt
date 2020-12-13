@@ -27,7 +27,7 @@ pub type DispatchResult = Result<()>;
 
 async fn dispatcher(
     s: &str,
-    dispatch: Dispatch,
+    dispatch: &mut Dispatch,
     sender: &mut mpsc::Sender<DispatchReply>,
 ) -> DispatchResult {
     match s {
@@ -36,11 +36,6 @@ async fn dispatcher(
         "help" => targets::commands::help(dispatch, sender).await,
         _ => targets::loud(dispatch, sender).await,
     }
-}
-
-pub fn is_loud(text: &String) -> bool {
-    let chars_regex = regex::Regex::new("[A-Z ]{5}").unwrap();
-    text.to_uppercase().eq(text) && chars_regex.is_match(text) && text.len() >= 5
 }
 
 impl DispatchReply {
@@ -72,7 +67,12 @@ impl Dispatch {
         }
     }
 
-    pub async fn dispatch(&self) -> Result<mpsc::Receiver<DispatchReply>> {
+    pub fn is_loud(&self, text: &String) -> bool {
+        let chars_regex = regex::Regex::new("[A-Z ]{5}").unwrap();
+        text.to_uppercase().eq(text) && chars_regex.is_match(text) && text.len() >= 5
+    }
+
+    pub async fn dispatch(&mut self) -> Result<mpsc::Receiver<DispatchReply>> {
         let text = match self.source {
             DispatchSource::IRC => {
                 let prefix = format!("{}: ", &self.nick);
@@ -98,28 +98,25 @@ impl Dispatch {
         .trim()
         .to_string();
 
-        let (s, r) = mpsc::channel::<DispatchReply>(100);
-        if is_loud(&text) {
-            let mut d = self.clone();
-            d.text = text;
-            let mut tmp_s = s.clone();
-            targets::loud(d, &mut tmp_s).await?;
+        let (mut s, r) = mpsc::channel::<DispatchReply>(100);
+        if self.is_loud(&text) {
+            self.text = text;
+            targets::loud(self, &mut s).await?;
         } else if self.text.trim() != text {
             let mut parts = text.splitn(2, " ");
-            let mut d = self.clone();
 
             if let Some(command) = parts.next() {
                 match parts.next() {
                     Some(t) => {
-                        d.text = t.to_string();
+                        self.text = t.to_string();
                     }
                     None => {}
                 };
 
-                dispatcher(command, d, &mut s.clone()).await?;
+                dispatcher(command, self, &mut s).await?;
             } else {
-                d.text = String::from("");
-                targets::loud(d, &mut s.clone()).await?;
+                self.text = String::new();
+                targets::loud(self, &mut s).await?;
             }
         }
 
@@ -129,26 +126,25 @@ impl Dispatch {
 }
 
 mod targets {
-    use crate::dispatch::is_loud;
     use crate::dispatch::{Dispatch, DispatchReply, DispatchResult};
     use crate::loudfile::LoudFile;
     use tokio::sync::mpsc;
 
     pub async fn loud(
-        dispatch: Dispatch,
+        dispatch: &mut Dispatch,
         sender: &mut mpsc::Sender<DispatchReply>,
     ) -> DispatchResult {
         let loudfile = LoudFile::new(String::from("loudfile.txt"));
 
-        if is_loud(&dispatch.text) && !dispatch.text.trim().is_empty() {
+        if dispatch.is_loud(&dispatch.text) && !dispatch.text.trim().is_empty() {
             println!("LOUD RECORDED: <{}> {}", dispatch.target, dispatch.text);
-            loudfile.append(dispatch.text).unwrap();
+            loudfile.append(dispatch.text.clone()).unwrap();
         }
 
         if let Some(line) = loudfile.get_line() {
             sender
                 .send(DispatchReply {
-                    target: dispatch.target,
+                    target: dispatch.target.clone(),
                     text: line,
                 })
                 .await?;
@@ -166,18 +162,18 @@ mod targets {
         use tokio::sync::mpsc;
 
         pub async fn help(
-            dispatch: Dispatch,
+            dispatch: &mut Dispatch,
             send: &mut mpsc::Sender<DispatchReply>,
         ) -> DispatchResult {
             let help_vec = vec!["BE LOUD!", "Try asking robutt what she thinks."];
 
             let mut help = help_vec.iter();
-            let target = dispatch.target;
-            let sender = dispatch.sender;
+            let target = dispatch.target.clone();
+            let sender = dispatch.sender.clone();
 
             while let Some(message) = help.next() {
                 send.send(DispatchReply {
-                    target: target.to_string(),
+                    target: target.clone(),
                     text: format!("{}: {}", sender, message),
                 })
                 .await?;
@@ -187,12 +183,12 @@ mod targets {
         }
 
         pub async fn short_help(
-            dispatch: Dispatch,
+            dispatch: &mut Dispatch,
             sender: &mut mpsc::Sender<DispatchReply>,
         ) -> DispatchResult {
             sender
                 .send(DispatchReply {
-                    target: dispatch.target,
+                    target: dispatch.target.clone(),
                     text: String::from("Invalid query: try `help`"),
                 })
                 .await?;
@@ -207,7 +203,7 @@ mod targets {
         }
 
         pub async fn roll(
-            dispatch: Dispatch,
+            dispatch: &mut Dispatch,
             sender: &mut mpsc::Sender<DispatchReply>,
         ) -> DispatchResult {
             if dispatch.text == "" {
@@ -255,7 +251,7 @@ mod targets {
         const THOUGHTS_FILE: &str = "deep.txt";
 
         pub async fn thoughts(
-            dispatch: Dispatch,
+            dispatch: &mut Dispatch,
             sender: &mut mpsc::Sender<DispatchReply>,
         ) -> DispatchResult {
             let file = File::open(THOUGHTS_FILE).unwrap();
@@ -281,7 +277,7 @@ mod targets {
             let quote = &quotes[random::<usize>() % quotes.len()];
             sender
                 .send(DispatchReply {
-                    target: dispatch.target,
+                    target: dispatch.target.clone(),
                     text: quote.to_string(),
                 })
                 .await?;

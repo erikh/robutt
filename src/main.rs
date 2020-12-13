@@ -46,7 +46,7 @@ pub async fn discord_loop(discord_token: String) -> DispatchResult {
                             message.author.name,
                             message.content
                         );
-                        let d = Dispatch::new(
+                        let mut d = Dispatch::new(
                             state.user().id.0,
                             state.user().username.to_string(),
                             message.author.name,
@@ -89,7 +89,7 @@ pub async fn irc_loop(config: config::Config) -> DispatchResult {
                 }
 
                 if let Some(prefix) = message.source_nickname() {
-                    let d = Dispatch::new(
+                    let mut d = Dispatch::new(
                         0,
                         my_nickname.to_string(),
                         prefix.to_string(),

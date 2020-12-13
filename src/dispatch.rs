@@ -57,9 +57,11 @@ impl Dispatch {
         }
     }
 
-    pub fn is_loud(&self, text: &String) -> bool {
+    pub fn is_loud(&self) -> bool {
         let chars_regex = regex::Regex::new("[A-Z ]{5}").unwrap();
-        text.to_uppercase().eq(text) && chars_regex.is_match(text) && text.len() >= 5
+        self.text.to_uppercase().eq(&self.text)
+            && chars_regex.is_match(&self.text)
+            && self.text.len() >= 5
     }
 
     pub async fn dispatch(&mut self) -> Result<mpsc::Receiver<DispatchReply>> {
@@ -89,8 +91,8 @@ impl Dispatch {
         .to_string();
 
         let (mut s, r) = mpsc::channel::<DispatchReply>(100);
-        if self.is_loud(&text) {
-            self.text = text;
+        self.text = text.clone();
+        if self.is_loud() {
             targets::loud(self, &mut s).await?;
         } else if self.text.trim() != text {
             let mut parts = text.splitn(2, " ");
@@ -126,7 +128,7 @@ mod targets {
     ) -> DispatchResult {
         let loudfile = LoudFile::new(String::from("loudfile.txt"));
 
-        if dispatch.is_loud(&dispatch.text) && !dispatch.text.trim().is_empty() {
+        if dispatch.is_loud() && !dispatch.text.trim().is_empty() {
             println!("LOUD RECORDED: <{}> {}", dispatch.target, dispatch.text);
             loudfile.append(dispatch.text.clone()).unwrap();
         }

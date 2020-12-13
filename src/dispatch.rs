@@ -19,8 +19,8 @@ pub struct Dispatch {
 
 #[derive(Clone, Debug)]
 pub struct DispatchReply {
-    target: String,
-    text: String,
+    pub target: String,
+    pub text: String,
 }
 
 pub type DispatchResult = Result<()>;
@@ -38,16 +38,6 @@ async fn dispatcher(
     }
 }
 
-impl DispatchReply {
-    pub fn get_target(&self) -> String {
-        return self.target.to_string();
-    }
-
-    pub fn get_text(&self) -> String {
-        return self.text.to_string();
-    }
-}
-
 impl Dispatch {
     pub fn new(
         id: u64,
@@ -60,7 +50,7 @@ impl Dispatch {
         Dispatch {
             id,
             nick,
-            sender: sender.clone(),
+            sender,
             target,
             text,
             source,
@@ -161,6 +151,11 @@ mod targets {
         use std::io::BufReader;
         use tokio::sync::mpsc;
 
+        const DICE_REGEX: &str = r"\s*(([1-9][0-9]*)d)?([1-9][0-9]*)(\+([1-9][0-9]*))?";
+
+        // http://www.textfiles.com/humor/deep.txt
+        const THOUGHTS_FILE: &str = "deep.txt";
+
         pub async fn help(
             dispatch: &mut Dispatch,
             send: &mut mpsc::Sender<DispatchReply>,
@@ -215,8 +210,7 @@ mod targets {
                 return short_help(dispatch, sender).await;
             }
 
-            let dice_rx =
-                regex::Regex::new(r"\s*(([1-9][0-9]*)d)?([1-9][0-9]*)(\+([1-9][0-9]*))?").unwrap();
+            let dice_rx = regex::Regex::new(DICE_REGEX).unwrap();
             let captures = match dice_rx.captures(&dispatch.text) {
                 Some(c) => c,
                 None => {
@@ -238,37 +232,30 @@ mod targets {
                 sum += result as u128;
             }
 
-            let outs = vec![format!("dice: {:?}", dice), format!("sum: {}", sum)];
-
-            for out in outs {
-                sender
-                    .send(DispatchReply {
-                        target: dispatch.target.clone(),
-                        text: out,
-                    })
-                    .await?;
-            }
+            sender
+                .send(DispatchReply {
+                    target: dispatch.target.clone(),
+                    text: format!("sum: {} | dice: {:?}", sum, dice),
+                })
+                .await?;
 
             Ok(())
         }
-
-        // http://www.textfiles.com/humor/deep.txt
-        const THOUGHTS_FILE: &str = "deep.txt";
 
         pub async fn thoughts(
             dispatch: &mut Dispatch,
             sender: &mut mpsc::Sender<DispatchReply>,
         ) -> DispatchResult {
-            let file = File::open(THOUGHTS_FILE).unwrap();
+            let file = File::open(THOUGHTS_FILE)?;
             let br = BufReader::new(file);
             let mut lines = br.lines();
             let mut quotes: Vec<String> = Vec::new();
-            let mut tmp = String::from("");
+            let mut tmp = String::new();
 
             while let Some(Ok(line)) = lines.next() {
                 if line.trim().is_empty() {
                     quotes.push(tmp.to_string());
-                    tmp = String::from("");
+                    tmp = String::new();
                 }
 
                 if tmp != "" {

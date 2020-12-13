@@ -59,7 +59,7 @@ pub async fn discord_loop(discord_token: String) -> DispatchResult {
 
                         while let Some(reply) = r.recv().await {
                             discord
-                                .send_message(message.channel_id, &reply.get_text(), "", false)
+                                .send_message(message.channel_id, &reply.text, "", false)
                                 .unwrap();
                         }
                     }
@@ -101,7 +101,7 @@ pub async fn irc_loop(config: config::Config) -> DispatchResult {
                     let mut r = d.dispatch().await?;
 
                     while let Some(reply) = r.recv().await {
-                        irc_client.send_privmsg(reply.get_target(), reply.get_text())?;
+                        irc_client.send_privmsg(reply.target, reply.text)?;
                     }
                 }
             }

@@ -38,6 +38,8 @@ async fn dispatcher(
     }
 }
 
+const TRIGGER_CHARACTER: &str = r"!";
+
 impl Dispatch {
     pub fn new(
         id: u64,
@@ -70,6 +72,8 @@ impl Dispatch {
                 let prefix = format!("{}: ", &self.nick);
                 if self.text.starts_with(prefix.as_str()) {
                     self.text.trim_start_matches(prefix.as_str())
+                } else if self.text.starts_with(TRIGGER_CHARACTER) {
+                    self.text.trim_start_matches(TRIGGER_CHARACTER)
                 } else {
                     &self.text
                 }
@@ -82,6 +86,8 @@ impl Dispatch {
                     self.text.trim_start_matches(prefix_discord.as_str())
                 } else if self.text.starts_with(prefix_discord2.as_str()) {
                     self.text.trim_start_matches(prefix_discord2.as_str())
+                } else if self.text.starts_with(TRIGGER_CHARACTER) {
+                    self.text.trim_start_matches(TRIGGER_CHARACTER)
                 } else {
                     &self.text
                 }
@@ -91,8 +97,8 @@ impl Dispatch {
         .to_string();
 
         let (mut s, r) = mpsc::channel::<DispatchReply>(100);
-        self.text = text.clone();
         if self.is_loud() {
+            self.text = text.clone();
             targets::loud(self, &mut s).await?;
         } else if self.text.trim() != text {
             let mut parts = text.splitn(2, " ");
@@ -163,17 +169,17 @@ mod targets {
             send: &mut mpsc::Sender<DispatchReply>,
         ) -> DispatchResult {
             let help_vec = vec![
-                "The bot only responds to being addressed directly, e.g., `robutt: roll 1d4`",
+                "The bot only responds to being addressed directly, e.g., `robutt: roll 1d4`, or with `!` prefixing, e.g., `!roll 1d4`",
                 "otherwise, BE LOUD!",
                 "Try asking robutt what she thinks.",
                 "`roll 2d6` for hot die on die action",
             ];
 
-            let mut help = help_vec.iter();
+            let help = help_vec.iter();
             let target = dispatch.target.clone();
             let sender = dispatch.sender.clone();
 
-            while let Some(message) = help.next() {
+            for message in help {
                 send.send(DispatchReply {
                     target: target.clone(),
                     text: format!("{}: {}", sender, message),

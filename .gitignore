@@ -1,5 +1,6 @@
 /target
 loudfile.txt
 config.yaml
+config.yml
 go.sh
 deep.txt

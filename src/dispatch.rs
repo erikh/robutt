@@ -4,7 +4,6 @@ use tokio::sync::mpsc;
 #[derive(Clone, Debug)]
 pub enum DispatchSource {
     IRC,
-    Discord,
 }
 
 #[derive(Clone, Debug)]
@@ -78,20 +77,6 @@ impl Dispatch {
                     &self.text
                 }
             }
-            DispatchSource::Discord => {
-                let prefix_discord = format!("<@{}>", self.id);
-                // kill me
-                let prefix_discord2 = format!("<@!{}>", self.id);
-                if self.text.starts_with(prefix_discord.as_str()) {
-                    self.text.trim_start_matches(prefix_discord.as_str())
-                } else if self.text.starts_with(prefix_discord2.as_str()) {
-                    self.text.trim_start_matches(prefix_discord2.as_str())
-                } else if self.text.starts_with(TRIGGER_CHARACTER) {
-                    self.text.trim_start_matches(TRIGGER_CHARACTER)
-                } else {
-                    &self.text
-                }
-            }
         }
         .trim()
         .to_string();
@@ -153,7 +138,6 @@ mod targets {
 
     pub mod commands {
         use crate::dispatch::{Dispatch, DispatchReply, DispatchResult};
-        use rand::prelude::*;
         use std::fs::File;
         use std::io::prelude::*;
         use std::io::BufReader;
@@ -274,7 +258,7 @@ mod targets {
                 tmp = tmp.trim().to_string();
             }
 
-            let quote = &quotes[random::<usize>() % quotes.len()];
+            let quote = &quotes[rand::random::<usize>() % quotes.len()];
             sender
                 .send(DispatchReply {
                     target: dispatch.target.clone(),

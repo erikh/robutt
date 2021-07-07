@@ -1,4 +1,3 @@
-use rand::prelude::*;
 use std::collections::HashSet;
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
@@ -39,10 +38,7 @@ impl LoudFile {
         match self.bucket() {
             Ok(bucket) => {
                 let vec: Vec<String> = bucket;
-                Some(
-                    vec.index(rand::thread_rng().gen::<usize>() % vec.len())
-                        .to_owned(),
-                )
+                Some(vec.index(rand::random::<usize>() % vec.len()).to_owned())
             }
             Err(_) => None,
         }

@@ -6,15 +6,15 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self {
-            config: irc::client::prelude::Config {
-                nickname: Some("robutt-dev".to_owned()),
-                server: Some("irc.freenode.net".to_owned()),
-                channels: vec!["#tinyci".to_owned()],
-                ping_timeout: Some(180),
-                ..irc::client::prelude::Config::default()
-            },
-        }
+        let config = irc::client::prelude::Config {
+            nickname: Some("robutt-dev".to_owned()),
+            server: Some("irc.hugops.org".to_owned()),
+            channels: vec!["#bots".to_owned()],
+            ping_timeout: Some(180),
+            ..irc::client::prelude::Config::default()
+        };
+
+        Self { config }
     }
 }
 

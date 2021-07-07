@@ -3,8 +3,6 @@ mod dispatch;
 mod loudfile;
 
 use anyhow::Result;
-use discord::model::Event::MessageCreate;
-use discord::Discord;
 use dispatch::{Dispatch, DispatchResult, DispatchSource};
 use futures::prelude::*;
 use irc::client::prelude::*;
@@ -22,51 +20,8 @@ fn load_config() -> Result<config::Config> {
 async fn main() -> DispatchResult {
     let config = load_config()?;
 
-    if let Ok(discord_token) = std::env::var("DISCORD_TOKEN") {
-        tokio::spawn(discord_loop(discord_token));
-    }
+    irc_loop(config).await?;
 
-    tokio::join!(irc_loop(config)).0?;
-
-    Ok(())
-}
-
-pub async fn discord_loop(discord_token: String) -> DispatchResult {
-    println!("Entering discord loop");
-    if let Ok(discord) = Discord::from_bot_token(&discord_token) {
-        if let Ok((mut discord_client, ready)) = discord.connect() {
-            let state = discord::State::new(ready);
-
-            loop {
-                if let Ok(MessageCreate(message)) = discord_client.recv_event() {
-                    if message.author.name != state.user().username {
-                        println!(
-                            "(user: {:?}) <{}> {}",
-                            state.user().id,
-                            message.author.name,
-                            message.content
-                        );
-                        let mut d = Dispatch::new(
-                            state.user().id.0,
-                            state.user().username.to_string(),
-                            message.author.name,
-                            message.channel_id.to_string(),
-                            message.content.to_string(),
-                            DispatchSource::Discord,
-                        );
-
-                        let mut r = d.dispatch().await?;
-
-                        while let Some(reply) = r.recv().await {
-                            discord
-                                .send_message(message.channel_id, &reply.text, "", false)
-                                .unwrap();
-                        }
-                    }
-                }
-            }
-        }
-    }
     Ok(())
 }
 

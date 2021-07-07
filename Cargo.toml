@@ -11,7 +11,6 @@ irc = { version = ">=0", features = [ "yaml", "json", "toml" ] }
 rand = ">=0"
 futures = ">=0"
 futures-util = '>=0'
-tokio = { version = '0.2', features = [ 'full' ] }
+tokio = { version = '>=0', features = [ 'full' ] }
 regex = '>=0'
-discord = { git = "https://github.com/SpaceManiac/discord-rs", branch = "master", features = [ ] }
-anyhow = "1.0"
+anyhow = ">=0"

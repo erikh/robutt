@@ -14,3 +14,6 @@ futures-util = '>=0'
 tokio = { version = '>=0', features = [ 'full' ] }
 regex = '>=0'
 anyhow = ">=0"
+url = ">=0"
+trust-dns-resolver = ">=0"
+reqwest = ">=0"

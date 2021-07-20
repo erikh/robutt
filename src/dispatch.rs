@@ -39,6 +39,29 @@ async fn dispatcher(
 
 const TRIGGER_CHARACTER: &str = r"!";
 
+const URL_PATTERN: &str = "https?://[^ ]+";
+
+fn url_regex() -> regex::Regex {
+    regex::Regex::new(URL_PATTERN).unwrap()
+}
+
+pub fn is_url(text: &str) -> bool {
+    url_regex().is_match(text)
+}
+
+pub fn extract_urls(text: &str) -> Vec<url::Url> {
+    let mut v: Vec<url::Url> = Vec::new();
+
+    for m in url_regex().find_iter(text) {
+        match url::Url::parse(m.as_str()) {
+            Ok(p) => v.push(p),
+            Err(_) => {}
+        }
+    }
+
+    v
+}
+
 impl Dispatch {
     pub fn new(
         id: u64,
@@ -85,6 +108,12 @@ impl Dispatch {
         if self.is_loud() {
             self.text = text.clone();
             targets::loud(self, &mut s).await?;
+        } else if is_url(&text) {
+            let mut d = self.clone();
+            let urls = text.clone();
+            d.text = text;
+            let mut tmp_s = s.clone();
+            targets::unroll_urls(d, &mut tmp_s, extract_urls(&urls)).await;
         } else if self.text.trim() != text {
             let mut parts = text.splitn(2, " ");
 
@@ -112,6 +141,64 @@ mod targets {
     use crate::dispatch::{Dispatch, DispatchReply, DispatchResult};
     use crate::loudfile::LoudFile;
     use tokio::sync::mpsc;
+    use trust_dns_resolver::AsyncResolver;
+
+    const TITLE_PATTERN: &str = "<title>([^<]+)</title>";
+
+    pub async fn unroll_urls(
+        dispatch: Dispatch,
+        sender: &mut mpsc::Sender<DispatchReply>,
+        urls: Vec<url::Url>,
+    ) -> DispatchResult {
+        let resolver = AsyncResolver::tokio_from_system_conf()?;
+        let title_regex = regex::Regex::new(TITLE_PATTERN).unwrap();
+        let restricted_ips = vec!["10.", "172.16.", "192.168.", "127."];
+
+        if urls.len() > 3 {
+            return Ok(());
+        }
+
+        for url in urls {
+            match url.host() {
+                Some(host) => match resolver.lookup_ip(host.to_string()).await {
+                    Ok(v) => {
+                        let mut restricted = false;
+
+                        for x in v {
+                            let str_ip = x.to_string();
+                            if restricted_ips.iter().any(|y| str_ip.starts_with(y)) {
+                                restricted = true;
+                            }
+                        }
+
+                        if !restricted {
+                            let text = reqwest::get(url.clone()).await?.text().await?;
+                            let title = match title_regex.captures(&text) {
+                                Some(c) => match c.get(1) {
+                                    Some(c) => c.as_str(),
+                                    None => "",
+                                },
+                                None => "",
+                            }
+                            .trim();
+
+                            if title != "" {
+                                sender
+                                    .send(DispatchReply {
+                                        target: dispatch.target.to_string(),
+                                        text: format!("[{}]: {}", url, title),
+                                    })
+                                    .await?;
+                            }
+                        }
+                    }
+                    Err(_) => {}
+                },
+                None => {}
+            }
+        }
+        Ok(())
+    }
 
     pub async fn loud(
         dispatch: &mut Dispatch,
@@ -146,7 +233,7 @@ mod targets {
         const DICE_REGEX: &str = r"\s*(([1-9][0-9]*)d)?([1-9][0-9]*)(\+([1-9][0-9]*))?";
 
         // http://www.textfiles.com/humor/deep.txt
-        const THOUGHTS_FILE: &str = "deep.txt";
+        const THOUGHTS_FILE: &str = "shaks12.txt";
 
         pub async fn help(
             dispatch: &mut Dispatch,
@@ -234,38 +321,80 @@ mod targets {
             Ok(())
         }
 
+        const MAX_LINE_LEN: usize = 128;
+
         pub async fn thoughts(
             dispatch: &mut Dispatch,
             sender: &mut mpsc::Sender<DispatchReply>,
         ) -> DispatchResult {
-            let file = File::open(THOUGHTS_FILE)?;
-            let br = BufReader::new(file);
-            let mut lines = br.lines();
-            let mut quotes: Vec<String> = Vec::new();
-            let mut tmp = String::new();
+            let mut skip_lines = rand::random::<usize>() % 200000; // we know the file is < 200k lines
+            let punctuation = regex::Regex::new("[!.?]").unwrap();
 
-            while let Some(Ok(line)) = lines.next() {
-                if line.trim().is_empty() {
-                    quotes.push(tmp.to_string());
-                    tmp = String::new();
+            loop {
+                let mut line_count = 0;
+                let mut last = false;
+
+                let file = File::open(THOUGHTS_FILE)?;
+                let br = BufReader::new(file);
+                let mut lines = br.lines();
+                let mut out = String::default();
+
+                while let Some(Ok(mut line)) = lines.next() {
+                    line_count += 1;
+                    if line_count < skip_lines {
+                        continue;
+                    }
+
+                    line = line.trim().to_string() + " ";
+
+                    while line.len() > 0 {
+                        let len = if line.len() > MAX_LINE_LEN {
+                            MAX_LINE_LEN
+                        } else {
+                            line.len()
+                        };
+
+                        if let Some(idx) = punctuation.find(&line[..len]) {
+                            out += &line[..idx.end()];
+                            last = true;
+                            break;
+                        } else {
+                            out += &line[..len];
+                            line = line[len..].to_string();
+                        }
+                    }
+
+                    if last {
+                        break;
+                    }
                 }
 
-                if tmp != "" {
-                    tmp += " "
+                while out.len() > MAX_LINE_LEN {
+                    sender
+                        .send(DispatchReply {
+                            target: dispatch.target.clone(),
+                            text: out[..MAX_LINE_LEN].trim().to_string(),
+                        })
+                        .await?;
+
+                    out = out[MAX_LINE_LEN..].to_string()
                 }
 
-                tmp += &line;
-                tmp = tmp.trim().to_string();
+                sender
+                    .send(DispatchReply {
+                        target: dispatch.target.clone(),
+                        text: out.trim().to_string(),
+                    })
+                    .await?;
+
+                if last {
+                    return Ok(());
+                }
+
+                // reset skip_lines if we get here to some factor of the line count, as we know how
+                // long the file is now.
+                skip_lines = rand::random::<usize>() % line_count;
             }
-
-            let quote = &quotes[rand::random::<usize>() % quotes.len()];
-            sender
-                .send(DispatchReply {
-                    target: dispatch.target.clone(),
-                    text: quote.to_string(),
-                })
-                .await?;
-            Ok(())
         }
     }
 }

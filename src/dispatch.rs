@@ -113,7 +113,7 @@ impl Dispatch {
             let urls = text.clone();
             d.text = text;
             let mut tmp_s = s.clone();
-            targets::unroll_urls(d, &mut tmp_s, extract_urls(&urls)).await;
+            targets::unroll_urls(d, &mut tmp_s, extract_urls(&urls)).await?;
         } else if self.text.trim() != text {
             let mut parts = text.splitn(2, " ");
 

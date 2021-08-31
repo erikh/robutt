@@ -31,6 +31,8 @@ pub async fn irc_loop(config: config::Config) -> DispatchResult {
     let mut irc_client = Client::from_config(config.config.clone()).await?;
 
     irc_client.identify()?;
+    irc_client.send_sasl_plain()?;
+
     let mut stream = irc_client.stream()?;
 
     loop {

@@ -233,6 +233,8 @@ mod targets {
         use std::fs::File;
         use std::io::prelude::*;
         use std::io::BufReader;
+        use std::io::SeekFrom;
+        use std::os::unix::prelude::MetadataExt;
         use tokio::sync::mpsc;
 
         lazy_static! {
@@ -328,80 +330,79 @@ mod targets {
             Ok(())
         }
 
+        lazy_static! {
+            static ref PUNC_REGEX: Regex = regex::Regex::new("[!.?] ").unwrap();
+            static ref WHITESPACE_COLLAPSE_REGEX: Regex = regex::Regex::new(r"\s{2,}").unwrap();
+            static ref NEWLINE_REGEX: Regex = Regex::new(r"[\n\r]").unwrap();
+        }
+
+        const MIN_LINE_LEN: usize = 32;
         const MAX_LINE_LEN: usize = 128;
 
         pub async fn thoughts(
             dispatch: &mut Dispatch,
             sender: &mut mpsc::Sender<DispatchReply>,
         ) -> DispatchResult {
-            let mut skip_lines = rand::random::<usize>() % 200000; // we know the file is < 200k lines
-            let punctuation = regex::Regex::new("[!.?]").unwrap();
+            let file = File::open(THOUGHTS_FILE)?;
+            let stat = file.metadata()?;
+            let mut br = BufReader::new(file);
+            let seek = rand::random::<u64>() % stat.size();
+            br.seek(SeekFrom::Start(seek))?;
 
-            loop {
-                let mut line_count = 0;
-                let mut last = false;
+            let mut out = String::default();
+            let mut punc_found = false;
 
-                let file = File::open(THOUGHTS_FILE)?;
-                let br = BufReader::new(file);
-                let mut lines = br.lines();
-                let mut out = String::default();
+            let mut buf = String::default();
 
-                while let Some(Ok(mut line)) = lines.next() {
-                    line_count += 1;
-                    if line_count < skip_lines {
-                        continue;
-                    }
-
-                    line = line.trim().to_string() + " ";
-
-                    while line.len() > 0 {
-                        let len = if line.len() > MAX_LINE_LEN {
-                            MAX_LINE_LEN
-                        } else {
-                            line.len()
-                        };
-
-                        if let Some(idx) = punctuation.find(&line[..len]) {
-                            out += &line[..idx.end()];
-                            last = true;
-                            break;
-                        } else {
-                            out += &line[..len];
-                            line = line[len..].to_string();
-                        }
-                    }
-
-                    if last {
+            while let Ok(_) = br.read_line(&mut buf) {
+                if let Some(idx) = PUNC_REGEX.find(&buf) {
+                    if idx.start() + 1 < buf.len() {
+                        out = buf[idx.start() + 1..].trim().to_string();
+                        out = out.trim().to_string() + " ";
                         break;
                     }
                 }
-
-                while out.len() > MAX_LINE_LEN {
-                    sender
-                        .send(DispatchReply {
-                            target: dispatch.target.clone(),
-                            text: out[..MAX_LINE_LEN].trim().to_string(),
-                        })
-                        .await?;
-
-                    out = out[MAX_LINE_LEN..].to_string()
-                }
-
-                sender
-                    .send(DispatchReply {
-                        target: dispatch.target.clone(),
-                        text: out.trim().to_string(),
-                    })
-                    .await?;
-
-                if last {
-                    return Ok(());
-                }
-
-                // reset skip_lines if we get here to some factor of the line count, as we know how
-                // long the file is now.
-                skip_lines = rand::random::<usize>() % line_count;
             }
+
+            let mut outlen = out.len();
+
+            while outlen < MAX_LINE_LEN && outlen < MIN_LINE_LEN && !punc_found {
+                if let Ok(_) = br.read_line(&mut buf) {
+                    let buf = buf.trim();
+                    let len = buf.len();
+
+                    if let Some(idx) = PUNC_REGEX.find(&buf[..len]) {
+                        if buf[..idx.end()].len() + outlen > MAX_LINE_LEN {
+                            if outlen == 0 {
+                                // first line is too long, whitespace returned
+                                continue;
+                            }
+                            break;
+                        }
+
+                        out += &buf[..idx.end()].trim();
+                        punc_found = true;
+                    } else {
+                        out += &buf[..len].trim();
+                    }
+
+                    out += " ";
+                    outlen = out.len()
+                } else {
+                    break;
+                }
+            }
+
+            sender
+                .send(DispatchReply {
+                    target: dispatch.target.clone(),
+                    text: WHITESPACE_COLLAPSE_REGEX
+                        .replace_all(&NEWLINE_REGEX.replace_all(&out, " "), " ")
+                        .to_string(),
+                })
+                .await?;
+
+            Ok(())
         }
     }
 }

@@ -1,4 +1,3 @@
-mod config;
 mod dispatch;
 mod loudfile;
 
@@ -7,12 +6,22 @@ use dispatch::{Dispatch, DispatchResult, DispatchSource};
 use futures::prelude::*;
 use irc::client::prelude::*;
 
-fn load_config() -> Result<config::Config> {
+pub fn default_config() -> Config {
+    irc::client::prelude::Config {
+        nickname: Some("robutt-dev".to_string()),
+        server: Some("irc.hugops.org".to_string()),
+        channels: vec!["#bots".to_string()],
+        ping_timeout: Some(180),
+        ..irc::client::prelude::Config::default()
+    }
+}
+
+fn load_config() -> Result<Config> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() >= 2 {
-        config::Config::new(args.get(1).unwrap().to_owned())
+        Ok(Config::load(args.get(1).unwrap().to_owned())?)
     } else {
-        Ok(config::Config::default())
+        Ok(default_config())
     }
 }
 
@@ -25,10 +34,11 @@ async fn main() -> DispatchResult {
     Ok(())
 }
 
-pub async fn irc_loop(config: config::Config) -> DispatchResult {
+pub async fn irc_loop(config: Config) -> DispatchResult {
     println!("Entering irc loop");
-    let my_nickname = config.config.nickname()?;
-    let mut irc_client = Client::from_config(config.config.clone()).await?;
+    let my_nickname = config.nickname()?;
+
+    let mut irc_client = Client::from_config(config.clone()).await?;
 
     irc_client.send_sasl_plain()?;
     irc_client.identify()?;

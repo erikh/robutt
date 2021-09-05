@@ -7,12 +7,12 @@ use futures::prelude::*;
 use irc::client::prelude::*;
 
 pub fn default_config() -> Config {
-    irc::client::prelude::Config {
+    Config {
         nickname: Some("robutt-dev".to_string()),
         server: Some("irc.hugops.org".to_string()),
         channels: vec!["#bots".to_string()],
         ping_timeout: Some(180),
-        ..irc::client::prelude::Config::default()
+        ..Default::default()
     }
 }
 

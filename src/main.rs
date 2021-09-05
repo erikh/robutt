@@ -27,11 +27,7 @@ fn load_config() -> Result<Config> {
 
 #[tokio::main]
 async fn main() -> DispatchResult {
-    let config = load_config()?;
-
-    irc_loop(config).await?;
-
-    Ok(())
+    Ok(irc_loop(load_config()?).await?)
 }
 
 pub async fn irc_loop(config: Config) -> DispatchResult {

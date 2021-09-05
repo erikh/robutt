@@ -1,5 +1,12 @@
 use anyhow::Result;
+use lazy_static::lazy_static;
+use regex::Regex;
 use tokio::sync::mpsc;
+
+lazy_static! {
+    static ref URL_REGEX: Regex = Regex::new("https?://[^ ]+").unwrap();
+    static ref LOUD_REGEX: Regex = Regex::new("[A-Z ]{5}").unwrap();
+}
 
 #[derive(Clone, Debug)]
 pub enum DispatchSource {
@@ -39,20 +46,14 @@ async fn dispatcher(
 
 const TRIGGER_CHARACTER: &str = r"!";
 
-const URL_PATTERN: &str = "https?://[^ ]+";
-
-fn url_regex() -> regex::Regex {
-    regex::Regex::new(URL_PATTERN).unwrap()
-}
-
 pub fn is_url(text: &str) -> bool {
-    url_regex().is_match(text)
+    URL_REGEX.is_match(text)
 }
 
 pub fn extract_urls(text: &str) -> Vec<url::Url> {
     let mut v: Vec<url::Url> = Vec::new();
 
-    for m in url_regex().find_iter(text) {
+    for m in URL_REGEX.find_iter(text) {
         match url::Url::parse(m.as_str()) {
             Ok(p) => v.push(p),
             Err(_) => {}
@@ -82,9 +83,8 @@ impl Dispatch {
     }
 
     pub fn is_loud(&self) -> bool {
-        let chars_regex = regex::Regex::new("[A-Z ]{5}").unwrap();
         self.text.to_uppercase().eq(&self.text)
-            && chars_regex.is_match(&self.text)
+            && LOUD_REGEX.is_match(&self.text)
             && self.text.len() >= 5
     }
 
@@ -140,10 +140,14 @@ impl Dispatch {
 mod targets {
     use crate::dispatch::{Dispatch, DispatchReply, DispatchResult};
     use crate::loudfile::LoudFile;
+    use lazy_static::lazy_static;
+    use regex::Regex;
     use tokio::sync::mpsc;
     use trust_dns_resolver::AsyncResolver;
 
-    const TITLE_PATTERN: &str = "<title>([^<]+)</title>";
+    lazy_static! {
+        static ref TITLE_PATTERN: Regex = Regex::new("<title>([^<]+)</title>").unwrap();
+    }
 
     pub async fn unroll_urls(
         dispatch: Dispatch,
@@ -151,7 +155,6 @@ mod targets {
         urls: Vec<url::Url>,
     ) -> DispatchResult {
         let resolver = AsyncResolver::tokio_from_system_conf()?;
-        let title_regex = regex::Regex::new(TITLE_PATTERN).unwrap();
         let restricted_ips = vec!["10.", "172.16.", "192.168.", "127."];
 
         if urls.len() > 3 {
@@ -173,7 +176,7 @@ mod targets {
 
                         if !restricted {
                             let text = reqwest::get(url.clone()).await?.text().await?;
-                            let title = match title_regex.captures(&text) {
+                            let title = match TITLE_PATTERN.captures(&text) {
                                 Some(c) => match c.get(1) {
                                     Some(c) => c.as_str(),
                                     None => "",
@@ -225,12 +228,17 @@ mod targets {
 
     pub mod commands {
         use crate::dispatch::{Dispatch, DispatchReply, DispatchResult};
+        use lazy_static::lazy_static;
+        use regex::Regex;
         use std::fs::File;
         use std::io::prelude::*;
         use std::io::BufReader;
         use tokio::sync::mpsc;
 
-        const DICE_REGEX: &str = r"\s*(([1-9][0-9]*)d)?([1-9][0-9]*)(\+([1-9][0-9]*))?";
+        lazy_static! {
+            static ref DICE_REGEX: Regex =
+                Regex::new(r"\s*(([1-9][0-9]*)d)?([1-9][0-9]*)(\+([1-9][0-9]*))?").unwrap();
+        }
 
         // http://www.textfiles.com/humor/deep.txt
         const THOUGHTS_FILE: &str = "shaks12.txt";
@@ -289,8 +297,7 @@ mod targets {
                 return short_help(dispatch, sender).await;
             }
 
-            let dice_rx = regex::Regex::new(DICE_REGEX).unwrap();
-            let captures = match dice_rx.captures(&dispatch.text) {
+            let captures = match DICE_REGEX.captures(&dispatch.text) {
                 Some(c) => c,
                 None => {
                     return short_help(dispatch, sender).await;

@@ -7,13 +7,14 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-irc = { version = ">=0", features = [ "yaml", "json", "toml" ] }
-rand = ">=0"
-futures = ">=0"
-futures-util = '>=0'
-tokio = { version = '>=0', features = [ 'full' ] }
-regex = '>=0'
-anyhow = ">=0"
-url = ">=0"
-trust-dns-resolver = ">=0"
-reqwest = ">=0"
+irc = { version = "*", features = [ "yaml" ] }
+rand = "*"
+futures = "*"
+futures-util = '*'
+tokio = { version = '*', features = [ 'full' ] }
+regex = '*'
+anyhow = "*"
+url = "*"
+trust-dns-resolver = "*"
+reqwest = "*"
+lazy_static = "*"

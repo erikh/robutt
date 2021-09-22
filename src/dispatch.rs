@@ -186,16 +186,34 @@ mod targets {
                             .trim();
 
                             if title != "" {
-                                sender
-                                    .send(DispatchReply {
-                                        target: dispatch.target.to_string(),
-                                        text: format!(
-                                            "[{}]: {}",
-                                            url.host().unwrap(),
-                                            html_escape::decode_html_entities(title),
-                                        ),
-                                    })
-                                    .await?;
+                                let mut i = 0;
+
+                                for title_part in html_escape::decode_html_entities(title)
+                                    .split("\n")
+                                    .into_iter()
+                                {
+                                    if title_part.trim().len() == 0 {
+                                        continue;
+                                    }
+
+                                    let mut title_part = title_part.to_string();
+
+                                    if i > 0 {
+                                        title_part = "... ".to_string() + &title_part;
+                                    }
+
+                                    sender
+                                        .send(DispatchReply {
+                                            target: dispatch.target.to_string(),
+                                            text: format!(
+                                                "[{}]: {}",
+                                                url.host().unwrap(),
+                                                title_part,
+                                            ),
+                                        })
+                                        .await?;
+                                    i += 1;
+                                }
                             }
                         }
                     }

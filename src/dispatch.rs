@@ -189,7 +189,11 @@ mod targets {
                                 sender
                                     .send(DispatchReply {
                                         target: dispatch.target.to_string(),
-                                        text: format!("[{}]: {}", url.host().unwrap(), title),
+                                        text: format!(
+                                            "[{}]: {}",
+                                            url.host().unwrap(),
+                                            html_escape::decode_html_entities(title),
+                                        ),
                                     })
                                     .await?;
                             }

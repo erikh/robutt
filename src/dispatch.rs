@@ -15,7 +15,6 @@ pub enum DispatchSource {
 
 #[derive(Clone, Debug)]
 pub struct Dispatch {
-    id: u64,
     nick: String,
     sender: String,
     target: String,
@@ -65,7 +64,6 @@ pub fn extract_urls(text: &str) -> Vec<url::Url> {
 
 impl Dispatch {
     pub fn new(
-        id: u64,
         nick: String,
         sender: String,
         target: String,
@@ -73,7 +71,6 @@ impl Dispatch {
         source: DispatchSource,
     ) -> Dispatch {
         Dispatch {
-            id,
             nick,
             sender,
             target,
@@ -261,11 +258,11 @@ mod targets {
 
         lazy_static! {
             static ref DICE_REGEX: Regex =
-                Regex::new(r"\s*(([1-9][0-9]*)d)?([1-9][0-9]*)(\+([1-9][0-9]*))?").unwrap();
+                Regex::new(r"\s*(([1-9][0-9]*)d)?([1-9][0-9]*)(([+-][1-9][0-9]*))?").unwrap();
         }
 
         // http://www.textfiles.com/humor/deep.txt
-        const THOUGHTS_FILE: &str = "shaks12.txt";
+        const THOUGHTS_FILE: &str = "deep.txt";
 
         pub async fn help(
             dispatch: &mut Dispatch,
@@ -306,9 +303,9 @@ mod targets {
             Ok(())
         }
 
-        pub fn convert_capture(captures: &regex::Captures, index: usize, default: u8) -> u8 {
+        pub fn convert_capture(captures: &regex::Captures, index: usize, default: i32) -> i32 {
             match captures.get(index) {
-                Some(x) => x.as_str().parse::<u8>().unwrap_or(default),
+                Some(x) => x.as_str().parse::<i32>().unwrap_or(default),
                 None => default,
             }
         }
@@ -332,20 +329,20 @@ mod targets {
             let die_size = convert_capture(&captures, 3, 10);
             let offset = convert_capture(&captures, 5, 0);
 
-            let mut dice: Vec<u8> = Vec::new();
-            let mut sum: u128 = 0;
+            let mut dice: Vec<i32> = Vec::new();
+            let mut sum: i128 = 0;
 
-            for _x in 0..num_dice {
-                let mut result: u8 = rand::random();
-                result = (result % die_size) + 1 + offset; // dice start at 1
+            for _ in 0..num_dice {
+                let mut result: i32 = rand::random();
+                result = (result.abs() % die_size) + 1; // dice start at 1
                 dice.push(result);
-                sum += result as u128;
+                sum += result as i128;
             }
 
             sender
                 .send(DispatchReply {
                     target: dispatch.target.clone(),
-                    text: format!("sum: {} | dice: {:?}", sum, dice),
+                    text: format!("sum: {} | dice: {:?}", sum + offset as i128, dice),
                 })
                 .await?;
 
@@ -375,16 +372,10 @@ mod targets {
             let mut punc_found = false;
 
             let mut buf = String::default();
+            br.read_line(&mut buf)?;
 
-            while let Ok(_) = br.read_line(&mut buf) {
-                if let Some(idx) = PUNC_REGEX.find(&buf) {
-                    if idx.start() + 1 < buf.len() {
-                        out = buf[idx.start() + 1..].trim().to_string();
-                        out = out.trim().to_string() + " ";
-                        break;
-                    }
-                }
-            }
+            let mut buf = String::default();
+            br.read_line(&mut buf)?;
 
             let mut outlen = out.len();
 

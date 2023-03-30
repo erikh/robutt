@@ -53,7 +53,6 @@ pub async fn irc_loop(config: Config) -> DispatchResult {
 
                 if let Some(prefix) = message.source_nickname() {
                     let mut d = Dispatch::new(
-                        0,
                         my_nickname.to_string(),
                         prefix.to_string(),
                         message.response_target().unwrap().to_string(),
